@@ -20,7 +20,7 @@ let wordleChannel;
 let discordGuild;
 
 const SKYBLOCK_ROLES = {
-	"480-∞": "480+",
+	"480+": "480+",
 	"440-479": "440 - 479",
 	"400-439": "400 - 439",
 	"360-399": "360 - 399",
@@ -349,7 +349,7 @@ function getCatacombsBracket(level) {
 function getSkyblockBracket(level) {
 	const low = Math.floor(level / 40) * 40;
 	const high = low + 39;
-	if (high == 519) return `${low}+`;
+	if (high > 480) return `${low}+`;
 	return `${low}-${high}`;
 }
 
