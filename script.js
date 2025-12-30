@@ -737,16 +737,15 @@ async function handleNotInGuildMembers(currentUsernames, memberObjectMap) {
 		.map(n => n.toLowerCase());
 	await handleNotInGuildMembers(currentDiscordUsernames, memberObjectMap);
 
-	await fs.copyFile(CSV_FILE, OLD_CSV_FILE);
-	await fs.writeFile(CSV_FILE, csvLines.join("\n"), "utf8");
-	console.log(`Wrote ${csvLines.length - 1} members to CSV with Discord usernames`);
-
 	if (fsSync.existsSync("guild_members.csv")) {
-		console.log("Detecting changes...");
+		await fs.copyFile(CSV_FILE, OLD_CSV_FILE);
+		console.log(`Wrote ${csvLines.length - 1} members to CSV with Discord usernames`);
 		await detectChangesAndLog(previousMembers, currentData);
 	} else {
 		console.log("CSV file does not exist, not sending any messages in the channel.");
 	}
+    
+	await fs.writeFile(CSV_FILE, csvLines.join("\n"), "utf8");
 
 	console.log("Done.");
 	if (client) client.destroy();
