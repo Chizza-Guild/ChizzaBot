@@ -641,11 +641,13 @@ async function handleNotInGuildMembers(currentUsernames, memberObjectMap) {
 			const parts = lines[i].split(",");
 			const [uuid, ign, bracket, lvl] = parts;
 			const discordUsername = parts[4] || null;
+			const farmingXp = parts[5] || 0;
 			previousMembers[uuid] = {
 				username: ign,
 				catacombsBracket: bracket,
 				skyblockLevel: isNaN(+lvl) ? lvl : getSkyblockBracket(+lvl),
 				discordUsername: discordUsername === "null" ? null : discordUsername,
+				farmingXp: +farmingXp,
 			};
 		}
 	}
@@ -663,7 +665,7 @@ async function handleNotInGuildMembers(currentUsernames, memberObjectMap) {
 	const { nicknameMap, memberObjectMap } = await getDiscordMemberMapping();
 
 	const currentData = {};
-	const csvLines = ["uuid,ign,catacombs,skyblock_bracket,discord_username"];
+	const csvLines = ["uuid,ign,catacombs,skyblock_bracket,discord_username,farming_xp"];
 	let cnt = 0;
 
 	for (const m of members) {
@@ -674,7 +676,8 @@ async function handleNotInGuildMembers(currentUsernames, memberObjectMap) {
 		if (resp.ok) username = (await resp.json()).name || "undefined";
 
 		let bracket = "Below 30",
-			maxSB = 0;
+			maxSB = 0,
+			totalFarmingXp = 0;
 		const p = await fetch(`https://api.hypixel.net/v2/skyblock/profiles?key=${apiKey}&uuid=${m.uuid}`);
 		const pj = await p.json();
 		if (pj.success && pj.profiles.length) {
@@ -686,6 +689,7 @@ async function handleNotInGuildMembers(currentUsernames, memberObjectMap) {
 				if (xp > maxXP) maxXP = xp;
 				const lvl = Math.floor((dat.leveling?.experience || 0) / 100);
 				if (lvl > maxSB) maxSB = lvl;
+				totalFarmingXp += dat.player_data?.experience?.SKILL_FARMING || 0; // Is SKILL_FARMING correct?
 			}
 			bracket = getCatacombsBracket(getDungeonLevel(maxXP));
 		}
@@ -721,10 +725,11 @@ async function handleNotInGuildMembers(currentUsernames, memberObjectMap) {
 			catacombsBracket: bracket,
 			skyblockLevel: skyBracket,
 			discordUsername: discordUsername,
+			farmingXp: totalFarmingXp,
 		};
 
 		const discordUsernameForCSV = discordUsername || "null";
-		csvLines.push(`${m.uuid},${username},${bracket},${skyBracket},${discordUsernameForCSV}`);
+		csvLines.push(`${m.uuid},${username},${bracket},${skyBracket},${discordUsernameForCSV},${totalFarmingXp}`);
 
 		if (bannedSet.has(m.uuid)) {
 			await logChange(`Banned player detected in guild: ${username} (${m.uuid})`);
@@ -744,7 +749,7 @@ async function handleNotInGuildMembers(currentUsernames, memberObjectMap) {
 	} else {
 		console.log("CSV file does not exist, not sending any messages in the channel.");
 	}
-    
+
 	await fs.writeFile(CSV_FILE, csvLines.join("\n"), "utf8");
 
 	console.log("Done.");
