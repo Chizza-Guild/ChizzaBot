@@ -13,7 +13,7 @@ let guildName;
 let botTextSendChannelId;
 let wordleChannelId;
 let serverId;
-let apiKey;
+const apiKey = process.env.HYPIXEL_API_KEY;
 
 const CHANGES_LOG_FILE = path.resolve(__dirname, "changes_log.txt");
 const CSV_FILE = path.resolve(__dirname, "guild_members.csv");
@@ -332,8 +332,6 @@ async function handleNotInGuildMembers(currentUsernames, memberObjectMap) {
 	botTextSendChannelId = env.botTextSendChannelId;
 	wordleChannelId = env.wordleChannelId;
 	serverId = env.serverId;
-
-	console.log("env", env);
 
 	client.login(dcToken);
 	client.once("ready", async () => {
