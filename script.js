@@ -680,6 +680,7 @@ async function handleNotInGuildMembers(currentUsernames, memberObjectMap) {
 			totalFarmingXp = 0;
 		const p = await fetch(`https://api.hypixel.net/v2/skyblock/profiles?key=${apiKey}&uuid=${m.uuid}`);
 		const pj = await p.json();
+
 		if (pj.success && pj.profiles.length) {
 			let maxXP = 0;
 			for (const prof of pj.profiles) {
@@ -689,7 +690,9 @@ async function handleNotInGuildMembers(currentUsernames, memberObjectMap) {
 				if (xp > maxXP) maxXP = xp;
 				const lvl = Math.floor((dat.leveling?.experience || 0) / 100);
 				if (lvl > maxSB) maxSB = lvl;
-				totalFarmingXp += dat.player_data?.experience?.SKILL_FARMING || 0; // Is SKILL_FARMING correct?
+				addedFarmingXp = Math.trunc(dat.player_data?.experience?.SKILL_FARMING || 0);
+				totalFarmingXp += addedFarmingXp;
+				console.log("Added", addedFarmingXp, "farming xp to", username);
 			}
 			bracket = getCatacombsBracket(getDungeonLevel(maxXP));
 		}
