@@ -6,8 +6,14 @@ const path = require("path");
 const { Client, GatewayIntentBits } = require("discord.js");
 const { SKYBLOCK_ROLES, CATACOMBS_ROLES, NOT_IN_GUILD_ROLE } = require("./rolenames.js");
 const { checkWordleResults, parseWordleMessage } = require("./wordle.js");
+const { loadEnvFromSupabase } = require("./supabase.js");
 
-const guildName = process.env.GUILD_NAME;
+let dcToken;
+let guildName;
+let botTextSendChannelId;
+let wordleChannelId;
+let serverId;
+let apiKey;
 
 const CHANGES_LOG_FILE = path.resolve(__dirname, "changes_log.txt");
 const CSV_FILE = path.resolve(__dirname, "guild_members.csv");
@@ -31,31 +37,6 @@ function waitForDiscordReady() {
 		}
 	});
 }
-
-client.login(process.env.DC_TOKEN);
-client.once("ready", async () => {
-	try {
-		channel = await client.channels.fetch(process.env.CHANNEL_ID);
-		discordGuild = await client.guilds.fetch(process.env.GUILD_ID);
-
-		if (process.env.WORDLE_CHANNEL) {
-			try {
-				wordleChannel = await client.channels.fetch(process.env.WORDLE_CHANNEL);
-				console.log(`Connected to Wordle channel: ${wordleChannel.name}`);
-			} catch (error) {
-				console.error("Error setting up Wordle channel:", error);
-				console.log("Make sure WORDLE_CHANNEL is correct in your .env file");
-			}
-		} else {
-			console.log("WORDLE_CHANNEL not configured in .env file");
-		}
-
-		console.log(`Connected to Discord server: ${discordGuild.name}`);
-	} catch (error) {
-		console.error("Error setting up Discord connection:", error);
-		console.log("Make sure GUILD_ID and CHANNEL_ID are correct in your .env file");
-	}
-});
 
 function getDungeonLevel(experience) {
 	const catacombsXpTable = [50, 75, 110, 160, 230, 330, 470, 670, 950, 1340, 1890, 2665, 3760, 5260, 7380, 10300, 14400, 20000, 27600, 38000, 52500, 71500, 97000, 132000, 180000, 243000, 328000, 445000, 600000, 800000, 1065000, 1410000, 1900000, 2500000, 3300000, 4300000, 5600000, 7200000, 9200000, 12000000, 15000000, 19000000, 24000000, 30000000, 38000000, 48000000, 60000000, 75000000, 93000000, 116250000];
@@ -343,10 +324,41 @@ async function handleNotInGuildMembers(currentUsernames, memberObjectMap) {
 }
 
 (async () => {
-	const args = process.argv.slice(2);
-	const wordleOnly = args.includes("wordle");
+	console.log("Fetching .env from supabase...");
+	const env = await loadEnvFromSupabase();
 
-	const apiKey = process.env.HYPIXEL_API_KEY;
+	dcToken = env.dcToken;
+	guildName = env.guildName;
+	botTextSendChannelId = env.botTextSendChannelId;
+	wordleChannelId = env.wordleChannelId;
+	serverId = env.serverId;
+
+	console.log("env", env);
+
+	client.login(dcToken);
+	client.once("ready", async () => {
+		try {
+			channel = await client.channels.fetch(botTextSendChannelId);
+			discordGuild = await client.guilds.fetch(serverId);
+
+			if (wordleChannelId) {
+				try {
+					wordleChannel = await client.channels.fetch(wordleChannelId);
+					console.log(`Connected to Wordle channel: ${wordleChannel.name}`);
+				} catch (error) {
+					console.error("Error setting up Wordle channel:", error);
+					console.log("Make sure WORDLE_CHANNEL is correct in your .env file");
+				}
+			} else {
+				console.log("WORDLE_CHANNEL not configured in .env file");
+			}
+
+			console.log(`Connected to Discord server: ${discordGuild.name}`);
+		} catch (error) {
+			console.error("Error setting up Discord connection:", error);
+			console.log("Make sure GUILD_ID and CHANNEL_ID are correct in your .env file");
+		}
+	});
 
 	console.log("Waiting for Discord client to be ready...");
 	await waitForDiscordReady();
@@ -355,7 +367,7 @@ async function handleNotInGuildMembers(currentUsernames, memberObjectMap) {
 
 	await checkWordleResults(wordleChannel);
 
-	if (wordleOnly) {
+	if (process.argv.slice(2).includes("wordle")) {
 		console.log("Wordle-only mode complete.");
 		if (client) client.destroy();
 		return;
@@ -384,8 +396,17 @@ async function handleNotInGuildMembers(currentUsernames, memberObjectMap) {
 	console.log(`Loaded ${Object.keys(previousMembers).length} previous members from CSV`);
 
 	const findRes = await fetch(`https://api.hypixel.net/findGuild?key=${apiKey}&byName=${guildName}`);
-	const { success, guild: guildId } = await findRes.json();
-	if (!success || !guildId) throw new Error("Guild not found");
+	const findResText = await findRes.text();
+	if (findRes.status == 403 || findResText.includes("Forbidden")) {
+		console.error("Invalid API Key");
+		process.exit(1);
+	}
+
+	const { success, guild: guildId } = JSON.parse(findResText);
+	if (!success || !guildId) {
+		console.error("Guild not found");
+		process.exit(1);
+	}
 
 	const guildRes = await fetch(`https://api.hypixel.net/guild?key=${apiKey}&id=${guildId}`);
 	const guildJson = await guildRes.json();
