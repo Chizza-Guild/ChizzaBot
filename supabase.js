@@ -19,13 +19,22 @@ export async function loadEnvFromSupabase() {
 }
 
 export async function loadBannedPlayers() {
-    const { data, error } = await supabase
-        .from("banned_uuids")
-        .select("uuid");
+	const { data, error } = await supabase.from("banned_uuids").select("uuid");
 
-    if (error) {
-        throw error;
-    }
+	if (error) {
+		throw error;
+	}
 
-    return new Set(data.map(row => row.uuid));
+	return new Set(data.map(row => row.uuid));
+}
+
+export async function addChangelogEntry(text, timestamp) {
+	const { error } = await supabase.from("changelog").insert({
+		text,
+		timestamp,
+	});
+
+	if (error) {
+		throw error;
+	}
 }

@@ -6,7 +6,7 @@ const path = require("path");
 const { Client, GatewayIntentBits } = require("discord.js");
 const { SKYBLOCK_ROLES, CATACOMBS_ROLES, NOT_IN_GUILD_ROLE } = require("./rolenames.js");
 const { checkWordleResults, parseWordleMessage } = require("./wordle.js");
-const { loadEnvFromSupabase, loadBannedPlayers } = require("./supabase.js");
+const { loadEnvFromSupabase, loadBannedPlayers, addChangelogEntry } = require("./supabase.js");
 
 let dcToken;
 let guildName;
@@ -66,8 +66,9 @@ function getSkyblockBracket(level) {
 async function logChange(message) {
 	console.log(message);
 	const timestamp = new Date().toISOString();
-	const logMessage = `[${timestamp}] ${message}\n`;
-	await fs.appendFile(CHANGES_LOG_FILE, logMessage);
+
+	await addChangelogEntry(message, timestamp);
+
 	if (channel) await channel.send(message);
 }
 
