@@ -17,3 +17,15 @@ export async function loadEnvFromSupabase() {
 		serverId: data.server_id,
 	};
 }
+
+export async function loadBannedPlayers() {
+    const { data, error } = await supabase
+        .from("banned_uuids")
+        .select("uuid");
+
+    if (error) {
+        throw error;
+    }
+
+    return new Set(data.map(row => row.uuid));
+}

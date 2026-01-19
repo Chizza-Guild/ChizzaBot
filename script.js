@@ -6,7 +6,7 @@ const path = require("path");
 const { Client, GatewayIntentBits } = require("discord.js");
 const { SKYBLOCK_ROLES, CATACOMBS_ROLES, NOT_IN_GUILD_ROLE } = require("./rolenames.js");
 const { checkWordleResults, parseWordleMessage } = require("./wordle.js");
-const { loadEnvFromSupabase } = require("./supabase.js");
+const { loadEnvFromSupabase, loadBannedPlayers } = require("./supabase.js");
 
 let dcToken;
 let guildName;
@@ -18,7 +18,6 @@ const apiKey = process.env.HYPIXEL_API_KEY;
 const CHANGES_LOG_FILE = path.resolve(__dirname, "changes_log.txt");
 const CSV_FILE = path.resolve(__dirname, "guild_members.csv");
 const OLD_CSV_FILE = path.resolve(__dirname, "guild_members_old.csv");
-const BANNED_FILE = path.resolve(__dirname, "banned_players.json");
 
 const client = new Client({
 	intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
@@ -100,16 +99,6 @@ async function detectChangesAndLog(previousData, currentData) {
 				await logChange(`Congratulations ${b.username} on reaching Skyblock level bracket ${b.skyblockLevel}! Enjoy your new role!`);
 			}
 		}
-	}
-}
-
-async function loadBannedPlayers() {
-	try {
-		const data = await fs.readFile(BANNED_FILE, "utf8");
-		return new Set(JSON.parse(data));
-	} catch {
-		await fs.writeFile(BANNED_FILE, "[]", "utf8");
-		return new Set();
 	}
 }
 
