@@ -4,11 +4,9 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SER
 
 export async function loadEnvFromSupabase() {
 	const { data, error } = await supabase.from("misc_settings").select("*").single();
-
 	if (error) {
 		throw error;
 	}
-
 	return {
 		dcToken: data.dc_token,
 		guildName: data.guild_name,
@@ -20,11 +18,9 @@ export async function loadEnvFromSupabase() {
 
 export async function loadBannedPlayers() {
 	const { data, error } = await supabase.from("banned_uuids").select("uuid");
-
 	if (error) {
 		throw error;
 	}
-
 	return new Set(data.map(row => row.uuid));
 }
 
@@ -33,7 +29,6 @@ export async function addChangelogEntry(text, timestamp) {
 		text,
 		timestamp,
 	});
-
 	if (error) {
 		throw error;
 	}
@@ -44,7 +39,6 @@ export async function getAllPlayerCredentials() {
 	if (error) {
 		throw error;
 	}
-
 	const credentialsMap = new Map();
 	data.forEach(player => {
 		credentialsMap.set(player.uuid, player);
@@ -81,12 +75,13 @@ export async function insertPlayerStats(statsArray) {
 	}
 }
 
-export async function upsertPlayerCredentials(uuid, ign, discordUsername) {
+export async function upsertPlayerCredentials(uuid, ign, discordUsername, status) {
 	const { error } = await supabase.from("player_credentials").upsert(
 		{
 			uuid,
 			ign,
 			discord_username: discordUsername,
+			status: status,
 		},
 		{
 			onConflict: "uuid",
@@ -100,6 +95,14 @@ export async function upsertPlayerCredentials(uuid, ign, discordUsername) {
 
 export async function updatePlayerIgn(uuid, newIgn) {
 	const { error } = await supabase.from("player_credentials").update({ ign: newIgn }).eq("uuid", uuid);
+
+	if (error) {
+		throw error;
+	}
+}
+
+export async function updatePlayerStatus(uuid, status) {
+	const { error } = await supabase.from("player_credentials").update({ status: status }).eq("uuid", uuid);
 
 	if (error) {
 		throw error;
