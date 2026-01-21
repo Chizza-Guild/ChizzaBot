@@ -38,3 +38,70 @@ export async function addChangelogEntry(text, timestamp) {
 		throw error;
 	}
 }
+
+export async function getAllPlayerCredentials() {
+	const { data, error } = await supabase.from("player_credentials").select("*");
+	if (error) {
+		throw error;
+	}
+
+	const credentialsMap = new Map();
+	data.forEach(player => {
+		credentialsMap.set(player.uuid, player);
+	});
+	return credentialsMap;
+}
+
+export async function getMostRecentStats() {
+	const { data, error } = await supabase.from("player_stats").select("uuid, timestamp, skyblock_level, catacombs_level, farmingxp").order("timestamp", { ascending: false });
+
+	if (error) {
+		throw error;
+	}
+
+	const statsMap = new Map();
+	data.forEach(stat => {
+		if (!statsMap.has(stat.uuid)) {
+			statsMap.set(stat.uuid, {
+				skyblockLevel: stat.skyblock_level,
+				catacombsLevel: stat.catacombs_level,
+				farmingXp: stat.farmingxp,
+				timestamp: stat.timestamp,
+			});
+		}
+	});
+
+	return statsMap;
+}
+
+export async function insertPlayerStats(statsArray) {
+	const { error } = await supabase.from("player_stats").insert(statsArray);
+	if (error) {
+		throw error;
+	}
+}
+
+export async function upsertPlayerCredentials(uuid, ign, discordUsername) {
+	const { error } = await supabase.from("player_credentials").upsert(
+		{
+			uuid,
+			ign,
+			discord_username: discordUsername,
+		},
+		{
+			onConflict: "uuid",
+		},
+	);
+
+	if (error) {
+		throw error;
+	}
+}
+
+export async function updatePlayerIgn(uuid, newIgn) {
+	const { error } = await supabase.from("player_credentials").update({ ign: newIgn }).eq("uuid", uuid);
+
+	if (error) {
+		throw error;
+	}
+}

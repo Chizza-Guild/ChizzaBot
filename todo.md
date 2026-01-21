@@ -1,14 +1,10 @@
-Wordle results not working
-
-Fetch user list and user stats from db
-
-Save user data to the db
+Use status column
 
 rework so rolenames.js is not needed
 
 RLS rules!!! very important
 
-warn a lot more if a member is in banned uuid list
+warn a lot more if a member is in banned uuid list and if api key is expired
 
 update readme.md
 

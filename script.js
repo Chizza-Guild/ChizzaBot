@@ -1,12 +1,9 @@
 require("dotenv").config();
 const fetch = require("node-fetch");
-const { promises: fs } = require("fs");
-const fsSync = require("fs");
-const path = require("path");
 const { Client, GatewayIntentBits } = require("discord.js");
 const { SKYBLOCK_ROLES, CATACOMBS_ROLES, NOT_IN_GUILD_ROLE } = require("./rolenames.js");
 const { checkWordleResults, parseWordleMessage } = require("./wordle.js");
-const { loadEnvFromSupabase, loadBannedPlayers, addChangelogEntry } = require("./supabase.js");
+const { loadEnvFromSupabase, loadBannedPlayers, addChangelogEntry, getAllPlayerCredentials, getMostRecentStats, insertPlayerStats, upsertPlayerCredentials, updatePlayerIgn } = require("./supabase.js");
 
 let dcToken;
 let guildName;
@@ -14,10 +11,6 @@ let botTextSendChannelId;
 let wordleChannelId;
 let serverId;
 const apiKey = process.env.HYPIXEL_API_KEY;
-
-const CHANGES_LOG_FILE = path.resolve(__dirname, "changes_log.txt");
-const CSV_FILE = path.resolve(__dirname, "guild_members.csv");
-const OLD_CSV_FILE = path.resolve(__dirname, "guild_members_old.csv");
 
 const client = new Client({
 	intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
@@ -72,32 +65,48 @@ async function logChange(message) {
 	if (channel) await channel.send(message);
 }
 
-async function detectChangesAndLog(previousData, currentData) {
-	const prev = new Set(Object.keys(previousData));
-	const curr = new Set(Object.keys(currentData));
+async function detectChangesAndLog(previousStatsMap, currentData, credentialsMap) {
+	const previousUUIDs = new Set(previousStatsMap.keys());
+	const currentUUIDs = new Set(Object.keys(currentData));
+
 	const joined = [];
 	const left = [];
 
-	for (const uuid of curr) {
-		if (!prev.has(uuid)) joined.push(currentData[uuid].username);
+	for (const uuid of currentUUIDs) {
+		if (!previousUUIDs.has(uuid)) {
+			joined.push(currentData[uuid].username);
+		}
 	}
 
-	for (const uuid of prev) {
-		if (!curr.has(uuid)) left.push(previousData[uuid].username);
+	for (const uuid of previousUUIDs) {
+		if (!currentUUIDs.has(uuid)) {
+			const credentials = credentialsMap.get(uuid);
+			if (credentials) {
+				left.push(credentials.ign);
+			}
+		}
 	}
 
 	if (joined.length) await logChange(`Welcome to our guild: ${joined.join(", ")}!`);
 	if (left.length) await logChange(`Members left: ${left.join(", ")}.`);
 
-	for (const uuid of curr) {
-		if (prev.has(uuid)) {
-			const a = previousData[uuid],
-				b = currentData[uuid];
-			if (a.catacombsBracket !== b.catacombsBracket) {
-				await logChange(`Congratulations ${b.username} on reaching Catacombs level bracket ${b.catacombsBracket}! Enjoy your new role!`);
+	for (const uuid of currentUUIDs) {
+		if (previousUUIDs.has(uuid)) {
+			const prevStats = previousStatsMap.get(uuid);
+			const currData = currentData[uuid];
+
+			const prevCataBracket = getCatacombsBracket(prevStats.catacombsLevel);
+			const currCataBracket = getCatacombsBracket(currData.catacombsLevel);
+
+			if (prevCataBracket !== currCataBracket) {
+				await logChange(`Congratulations ${currData.username} on reaching Catacombs level bracket ${currCataBracket}! Enjoy your new role!`);
 			}
-			if (a.skyblockLevel !== b.skyblockLevel) {
-				await logChange(`Congratulations ${b.username} on reaching Skyblock level bracket ${b.skyblockLevel}! Enjoy your new role!`);
+
+			const prevSBBracket = getSkyblockBracket(prevStats.skyblockLevel);
+			const currSBBracket = getSkyblockBracket(currData.skyblockLevel);
+
+			if (prevSBBracket !== currSBBracket) {
+				await logChange(`Congratulations ${currData.username} on reaching Skyblock level bracket ${currSBBracket}! Enjoy your new role!`);
 			}
 		}
 	}
@@ -300,14 +309,16 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 	}
 }
 
-async function handleNotInGuildMembers(currentUsernames, memberObjectMap) {
+async function handleNotInGuildMembers(currentGuildUUIDs, credentialsMap, memberObjectMap) {
 	if (!discordGuild) return;
 	console.log("Checking for Discord members not in guild...");
-	for (const discordMember of memberObjectMap.values()) {
-		if (!hasAnyRoles(discordMember)) continue;
-		const name = discordMember.user.username.toLowerCase();
-		const nick = discordMember.displayName.toLowerCase();
-		if (!currentUsernames.includes(name) && !currentUsernames.includes(nick)) {
+
+	for (const [uuid, credentials] of credentialsMap.entries()) {
+		if (currentGuildUUIDs.has(uuid)) continue;
+		if (!credentials.discord_username) continue;
+
+		const discordMember = findDiscordMemberByUsername(credentials.discord_username, memberObjectMap);
+		if (discordMember && hasAnyRoles(discordMember)) {
 			await manageUserRoles(discordMember, null, null, false);
 		}
 	}
@@ -363,25 +374,13 @@ async function handleNotInGuildMembers(currentUsernames, memberObjectMap) {
 
 	const bannedSet = await loadBannedPlayers();
 
-	let previousMembers = {};
-	const csvData = await fs.readFile(CSV_FILE, "utf8").catch(() => "");
-	if (csvData) {
-		const lines = csvData.trim().split("\n");
-		for (let i = 1; i < lines.length; i++) {
-			const parts = lines[i].split(",");
-			const [uuid, ign, bracket, lvl] = parts;
-			const discordUsername = parts[4] || null;
-			const farmingXp = parts[5] || 0;
-			previousMembers[uuid] = {
-				username: ign,
-				catacombsBracket: bracket,
-				skyblockLevel: isNaN(+lvl) ? lvl : getSkyblockBracket(+lvl),
-				discordUsername: discordUsername === "null" ? null : discordUsername,
-				farmingXp: +farmingXp,
-			};
-		}
-	}
-	console.log(`Loaded ${Object.keys(previousMembers).length} previous members from CSV`);
+	console.log("Loading player credentials from Supabase...");
+	const credentialsMap = await getAllPlayerCredentials();
+	console.log(`Loaded ${credentialsMap.size} player credentials from Supabase`);
+
+	console.log("Loading most recent stats from Supabase...");
+	const previousStatsMap = await getMostRecentStats();
+	console.log(`Loaded stats for ${previousStatsMap.size} players from Supabase`);
 
 	const findRes = await fetch(`https://api.hypixel.net/findGuild?key=${apiKey}&byName=${guildName}`);
 	const findResText = await findRes.text();
@@ -404,19 +403,22 @@ async function handleNotInGuildMembers(currentUsernames, memberObjectMap) {
 	const { nicknameMap, memberObjectMap } = await getDiscordMemberMapping();
 
 	const currentData = {};
-	const csvLines = ["uuid,ign,catacombs,skyblock_bracket,discord_username,farming_xp"];
+	const statsToInsert = [];
+	const currentTimestamp = new Date().toISOString();
 	let cnt = 0;
 
 	for (const m of members) {
 		cnt++;
 		console.log(`Processing ${cnt}/${members.length}: ${m.uuid}`);
+
 		let username = "undefined";
 		const resp = await fetch(`https://sessionserver.mojang.com/session/minecraft/profile/${m.uuid}`);
 		if (resp.ok) username = (await resp.json()).name || "undefined";
 
-		let bracket = "Below 30",
-			maxSB = 0,
+		let catacombsLevel = 0,
+			skyblockLevel = 0,
 			totalFarmingXp = 0;
+
 		const p = await fetch(`https://api.hypixel.net/v2/skyblock/profiles?key=${apiKey}&uuid=${m.uuid}`);
 		const pj = await p.json();
 
@@ -428,26 +430,30 @@ async function handleNotInGuildMembers(currentUsernames, memberObjectMap) {
 				const xp = dat.dungeons?.dungeon_types?.catacombs?.experience || 0;
 				if (xp > maxXP) maxXP = xp;
 				const lvl = Math.floor((dat.leveling?.experience || 0) / 100);
-				if (lvl > maxSB) maxSB = lvl;
-				addedFarmingXp = Math.trunc(dat.player_data?.experience?.SKILL_FARMING || 0);
+				if (lvl > skyblockLevel) skyblockLevel = lvl;
+				const addedFarmingXp = Math.trunc(dat.player_data?.experience?.SKILL_FARMING || 0);
 				totalFarmingXp += addedFarmingXp;
 				console.log("Added", addedFarmingXp, "farming xp to", username);
 			}
-			bracket = getCatacombsBracket(getDungeonLevel(maxXP));
+			catacombsLevel = getDungeonLevel(maxXP);
 		}
 
-		const skyBracket = getSkyblockBracket(maxSB);
+		const skyBracket = getSkyblockBracket(skyblockLevel);
+		const cataBracket = getCatacombsBracket(catacombsLevel);
 
 		let discordUsername = null;
 		let discordMember = null;
 
-		if (previousMembers[m.uuid] && previousMembers[m.uuid].discordUsername) {
-			discordUsername = previousMembers[m.uuid].discordUsername;
-			discordMember = findDiscordMemberByUsername(discordUsername, memberObjectMap);
-			if (discordMember) {
-				const previousIGN = previousMembers[m.uuid].username;
-				if (previousIGN !== username && username !== "undefined") {
-					await logChange(`${previousIGN} changed their Minecraft username to ${username}.`);
+		const existingCredentials = credentialsMap.get(m.uuid);
+
+		if (existingCredentials) {
+			discordUsername = existingCredentials.discord_username;
+			discordMember = discordUsername ? findDiscordMemberByUsername(discordUsername, memberObjectMap) : null;
+
+			if (existingCredentials.ign !== username && username !== "undefined") {
+				await logChange(`${existingCredentials.ign} changed their Minecraft username to ${username}.`);
+				await updatePlayerIgn(m.uuid, username);
+				if (discordMember) {
 					await updateDiscordNickname(discordMember, username);
 				}
 			}
@@ -456,43 +462,48 @@ async function handleNotInGuildMembers(currentUsernames, memberObjectMap) {
 			discordMember = username !== "undefined" ? memberObjectMap.get(username.toLowerCase()) : null;
 		}
 
+		await upsertPlayerCredentials(m.uuid, username, discordUsername);
+
 		if (discordMember) {
-			await manageUserRoles(discordMember, skyBracket, bracket, true);
+			await manageUserRoles(discordMember, skyBracket, cataBracket, true);
 		} else if (username !== "undefined") {
 			console.log(`Discord member not found for Minecraft user: ${username}`);
 		}
 
 		currentData[m.uuid] = {
 			username,
-			catacombsBracket: bracket,
-			skyblockLevel: skyBracket,
-			discordUsername: discordUsername,
+			catacombsLevel,
+			skyblockLevel,
+			discordUsername,
 			farmingXp: totalFarmingXp,
 		};
 
-		const discordUsernameForCSV = discordUsername || "null";
-		csvLines.push(`${m.uuid},${username},${bracket},${skyBracket},${discordUsernameForCSV},${totalFarmingXp}`);
+		statsToInsert.push({
+			timestamp: currentTimestamp,
+			uuid: m.uuid,
+			skyblock_level: skyblockLevel,
+			catacombs_level: catacombsLevel,
+			farmingxp: totalFarmingXp,
+		});
 
 		if (bannedSet.has(m.uuid)) {
 			await logChange(`Banned player detected in guild: ${username} (${m.uuid})`);
 		}
 	}
 
-	const currentDiscordUsernames = Object.values(currentData)
-		.map(u => u.discordUsername)
-		.filter(Boolean)
-		.map(n => n.toLowerCase());
-	await handleNotInGuildMembers(currentDiscordUsernames, memberObjectMap);
+	const currentGuildUUIDs = new Set(Object.keys(currentData));
+	await handleNotInGuildMembers(currentGuildUUIDs, credentialsMap, memberObjectMap);
 
-	if (fsSync.existsSync("guild_members.csv")) {
-		await fs.copyFile(CSV_FILE, OLD_CSV_FILE);
-		console.log(`Wrote ${csvLines.length - 1} members to CSV with Discord usernames`);
-		await detectChangesAndLog(previousMembers, currentData);
-	} else {
-		console.log("CSV file does not exist, not sending any messages in the channel.");
+	if (statsToInsert.length > 0) {
+		console.log(`Inserting ${statsToInsert.length} player stats to Supabase...`);
+		await insertPlayerStats(statsToInsert);
 	}
 
-	await fs.writeFile(CSV_FILE, csvLines.join("\n"), "utf8");
+	if (previousStatsMap.size > 0) {
+		await detectChangesAndLog(previousStatsMap, currentData, credentialsMap);
+	} else {
+		console.log("No previous stats found, skipping change detection.");
+	}
 
 	console.log("Done.");
 	if (client) client.destroy();

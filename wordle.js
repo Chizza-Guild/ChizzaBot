@@ -216,7 +216,7 @@ const multipleFailureMessages = [
 	"%s redefined what group failure looks like.",
 	"This wasn't a puzzle. It was a trap, and %s fell in.",
 	"Watching %s fail was today's entertainment.",
-	"Five guesses, zero brain cells. Well done, %s.",
+	"Six guesses, zero brain cells. Well done, %s.",
 	"We hoped for the best. Then %s showed up.",
 	"Not even divine intervention could've helped %s.",
 	"%s vs. Wordle: history's saddest war.",
