@@ -491,6 +491,21 @@ async function handleNotInGuildMembers(currentGuildUUIDs, credentialsMap, member
 		}
 	}
 
+	for (const uuid of currentGuildUUIDs) {
+		if (currentData[uuid].discordUsername) {
+			const existing = credentialsMap.get(uuid);
+			if (existing) {
+				existing.discord_username = currentData[uuid].discordUsername;
+				existing.ign = currentData[uuid].username;
+			} else {
+				credentialsMap.set(uuid, {
+					discord_username: currentData[uuid].discordUsername,
+					ign: currentData[uuid].username,
+				});
+			}
+		}
+	}
+
 	const currentGuildUUIDs = new Set(Object.keys(currentData));
 	await handleNotInGuildMembers(currentGuildUUIDs, credentialsMap, memberObjectMap);
 
