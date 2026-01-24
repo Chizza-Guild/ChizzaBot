@@ -1,17 +1,12 @@
 require("dotenv").config();
 const fetch = require("node-fetch");
 const { Client, GatewayIntentBits } = require("discord.js");
-const { SKYBLOCK_ROLES, CATACOMBS_ROLES, NOT_IN_GUILD_ROLE } = require("./rolenames.js");
 const { checkWordleResults, parseWordleMessage } = require("./wordle.js");
 const { loadEnvFromSupabase, loadBannedPlayers, addChangelogEntry, getAllPlayerCredentials, getMostRecentStats, insertPlayerStats, upsertPlayerCredentials, updatePlayerIgn } = require("./supabase.js");
 
-let dcToken;
-let guildName;
-let botTextSendChannelId;
-let wordleChannelId;
-let serverId;
 const apiKey = process.env.HYPIXEL_API_KEY;
-
+const SKYBLOCK_ROLES = ["480+", "440 - 479", "400 - 439", "360 - 399", "320 - 359", "280 - 319", "240 - 279", "200 - 239", "160 - 199", "120 - 159", "80 - 119", "40 - 79", "0 - 39"];
+const CATACOMBS_ROLES = ["Cata 30+", "Cata 35+", "Cata 40+", "Cata 45+", "Cata 50+"];
 const client = new Client({
 	intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
 });
@@ -19,6 +14,11 @@ const client = new Client({
 let channel;
 let wordleChannel;
 let discordGuild;
+let dcToken;
+let guildName;
+let botTextSendChannelId;
+let wordleChannelId;
+let serverId;
 
 function waitForDiscordReady() {
 	return new Promise(resolve => {
@@ -41,12 +41,12 @@ function getDungeonLevel(experience) {
 }
 
 function getCatacombsBracket(level) {
-	if (level >= 50) return "MAX";
-	if (level >= 45) return "45-50";
-	if (level >= 40) return "40-45";
-	if (level >= 35) return "35-40";
-	if (level >= 30) return "30-35";
-	return "Below 30";
+	if (level >= 50) return "Cata 50+";
+	if (level >= 45) return "Cata 45+";
+	if (level >= 40) return "Cata 40+";
+	if (level >= 35) return "Cata 35+";
+	if (level >= 30) return "Cata 30+";
+	return null;
 }
 
 function getSkyblockBracket(level) {
@@ -184,7 +184,7 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 	try {
 		console.log(`Managing roles for ${discordMember.displayName}: SB Bracket ${skyblockBracket}, Catacombs ${catacombsBracket}, In Guild: ${isInGuild}`);
 		const allRoles = discordGuild.roles.cache;
-		const notInGuildRole = allRoles.find(r => r.name === NOT_IN_GUILD_ROLE);
+		const notInGuildRole = allRoles.find(r => r.name == "Not in guild");
 		const botRole = allRoles.find(r => r.name === "Bot");
 
 		if (!hasAnyRoles(discordMember)) {
