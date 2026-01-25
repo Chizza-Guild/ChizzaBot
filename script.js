@@ -269,13 +269,21 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 	const findRes = await fetch(`https://api.hypixel.net/findGuild?key=${apiKey}&byName=${guildName}`);
 	const findResText = await findRes.text();
 	if (findRes.status == 403 || findResText.includes("Forbidden")) {
-		console.error("Invalid API Key");
+		console.log("##############################################");
+		console.log("##############################################");
+		console.log("##############################################");
+		console.log("Invalid API Key");
+		console.log("##############################################");
 		process.exit(1);
 	}
 
 	const { success, guild: guildId } = JSON.parse(findResText);
 	if (!success || !guildId) {
-		console.error("Guild not found");
+		console.log("##############################################");
+		console.log("##############################################");
+		console.log("##############################################");
+		console.log("Guild not found");
+		console.log("##############################################");
 		process.exit(1);
 	}
 
