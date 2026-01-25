@@ -9,14 +9,14 @@ JavaScript
 ## Step by step running guide
 
 Firstly, download NPM and Node.js from official sources      
+Secondly, create a file in this folder named .env with these contents:  
 
-Secondly, create a file in this folder named .env with these contents:   
-   
-HYPIXEL_API_KEY = xxxxx --> Get from hypixel developer portal (needs to be refreshed every day)   
-DC_TOKEN = xxxxx --> Token of the Discord Bot   
-GUILD_NAME = xxxxx --> Skyblock Guild Name   
-CHANNEL_ID = xxxxx --> Right click discord channel and press "Copy ID"   
-GUILD_ID = xxxxx --> Right click discord server and press "Copy ID"  
-WORDLE_CHANNEL = xxxxx --> The channel ID where the Wordle is being played (You can leave this empty) 
+SUPABASE_URL = xxxxx  
+SUPABASE_SERVICE_ROLE_KEY = xxxxx  
+HYPIXEL_API_KEY = xxxxx --> Get from hypixel developer portal (needs to be refreshed every day)    
 
 Finally, run by typing: node script.js
+
+### For duplicating:
+
+Database Schema: Coming Soon
