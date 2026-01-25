@@ -1,8 +1,6 @@
 Use status column
 
-Fix the bot giving everyone not in guild role at the end of processing all x/y members
-
-rework so rolenames.js is not needed
+Fix the algorithm througly
 
 RLS rules!!! very important
 

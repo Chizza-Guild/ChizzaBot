@@ -20,16 +20,6 @@ let botTextSendChannelId;
 let wordleChannelId;
 let serverId;
 
-function waitForDiscordReady() {
-	return new Promise(resolve => {
-		if (client.isReady()) {
-			resolve();
-		} else {
-			client.once("ready", resolve);
-		}
-	});
-}
-
 function getDungeonLevel(experience) {
 	const catacombsXpTable = [50, 75, 110, 160, 230, 330, 470, 670, 950, 1340, 1890, 2665, 3760, 5260, 7380, 10300, 14400, 20000, 27600, 38000, 52500, 71500, 97000, 132000, 180000, 243000, 328000, 445000, 600000, 800000, 1065000, 1410000, 1900000, 2500000, 3300000, 4300000, 5600000, 7200000, 9200000, 12000000, 15000000, 19000000, 24000000, 30000000, 38000000, 48000000, 60000000, 75000000, 93000000, 116250000];
 	let totalExperience = 0;
@@ -53,111 +43,14 @@ function getSkyblockBracket(level) {
 	const low = Math.floor(level / 40) * 40;
 	const high = low + 39;
 	if (high > 480) return `${low}+`;
-	return `${low}-${high}`;
+	return `${low} - ${high}`;
 }
 
 async function logChange(message) {
 	console.log(message);
 	const timestamp = new Date().toISOString();
-
 	await addChangelogEntry(message, timestamp);
-
 	if (channel) await channel.send(message);
-}
-
-async function detectChangesAndLog(previousStatsMap, currentData, credentialsMap) {
-	const previousUUIDs = new Set(previousStatsMap.keys());
-	const currentUUIDs = new Set(Object.keys(currentData));
-
-	const joined = [];
-	const left = [];
-
-	for (const uuid of currentUUIDs) {
-		if (!previousUUIDs.has(uuid)) {
-			joined.push(currentData[uuid].username);
-		}
-	}
-
-	for (const uuid of previousUUIDs) {
-		if (!currentUUIDs.has(uuid)) {
-			const credentials = credentialsMap.get(uuid);
-			if (credentials) {
-				left.push(credentials.ign);
-			}
-		}
-	}
-
-	if (joined.length) await logChange(`Welcome to our guild: ${joined.join(", ")}!`);
-	if (left.length) await logChange(`Members left: ${left.join(", ")}.`);
-
-	for (const uuid of currentUUIDs) {
-		if (previousUUIDs.has(uuid)) {
-			const prevStats = previousStatsMap.get(uuid);
-			const currData = currentData[uuid];
-
-			const prevCataBracket = getCatacombsBracket(prevStats.catacombsLevel);
-			const currCataBracket = getCatacombsBracket(currData.catacombsLevel);
-
-			if (prevCataBracket !== currCataBracket) {
-				await logChange(`Congratulations ${currData.username} on reaching Catacombs level bracket ${currCataBracket}! Enjoy your new role!`);
-			}
-
-			const prevSBBracket = getSkyblockBracket(prevStats.skyblockLevel);
-			const currSBBracket = getSkyblockBracket(currData.skyblockLevel);
-
-			if (prevSBBracket !== currSBBracket) {
-				await logChange(`Congratulations ${currData.username} on reaching Skyblock level bracket ${currSBBracket}! Enjoy your new role!`);
-			}
-		}
-	}
-}
-
-async function getDiscordMemberMapping() {
-	if (!discordGuild) {
-		console.log("Discord guild not available, skipping Discord integration");
-		return { nicknameMap: new Map(), memberObjectMap: new Map() };
-	}
-
-	try {
-		console.log("Fetching Discord server members...");
-		await discordGuild.members.fetch();
-		const members = discordGuild.members.cache;
-
-		const nicknameMap = new Map();
-		const memberObjectMap = new Map();
-
-		members.forEach(member => {
-			const displayName = member.displayName;
-			const username = member.user.username;
-			nicknameMap.set(displayName.toLowerCase(), username);
-			memberObjectMap.set(displayName.toLowerCase(), member);
-			if (displayName !== username) {
-				nicknameMap.set(username.toLowerCase(), username);
-				memberObjectMap.set(username.toLowerCase(), member);
-			}
-		});
-
-		console.log(`Loaded ${nicknameMap.size} Discord member mappings`);
-		return { nicknameMap, memberObjectMap };
-	} catch (error) {
-		console.error("Error fetching Discord members:", error);
-		return { nicknameMap: new Map(), memberObjectMap: new Map() };
-	}
-}
-
-function findDiscordUsername(minecraftIGN, discordMap) {
-	if (!minecraftIGN || minecraftIGN === "undefined") return null;
-	const lowerIGN = minecraftIGN.toLowerCase();
-	return discordMap.get(lowerIGN) || null;
-}
-
-function findDiscordMemberByUsername(username, memberObjectMap) {
-	if (!username || username === "undefined") return null;
-	return memberObjectMap.get(username.toLowerCase()) || null;
-}
-
-function hasAnyRoles(discordMember) {
-	return discordMember.roles.cache.size > 1;
 }
 
 async function updateDiscordNickname(discordMember, newNickname) {
@@ -187,7 +80,7 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 		const notInGuildRole = allRoles.find(r => r.name == "Not in guild");
 		const botRole = allRoles.find(r => r.name === "Bot");
 
-		if (!hasAnyRoles(discordMember)) {
+		if (discordMember.roles.cache.size <= 1) {
 			console.log(`${discordMember.displayName} has no roles (unverified), skipping role management`);
 			return;
 		}
@@ -309,21 +202,6 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 	}
 }
 
-async function handleNotInGuildMembers(currentGuildUUIDs, credentialsMap, memberObjectMap) {
-	if (!discordGuild) return;
-	console.log("Checking for Discord members not in guild...");
-
-	for (const [uuid, credentials] of credentialsMap.entries()) {
-		if (currentGuildUUIDs.has(uuid)) continue;
-		if (!credentials.discord_username) continue;
-
-		const discordMember = findDiscordMemberByUsername(credentials.discord_username, memberObjectMap);
-		if (discordMember && hasAnyRoles(discordMember)) {
-			await manageUserRoles(discordMember, null, null, false);
-		}
-	}
-}
-
 (async () => {
 	console.log("Fetching .env from supabase...");
 	const env = await loadEnvFromSupabase();
@@ -360,7 +238,13 @@ async function handleNotInGuildMembers(currentGuildUUIDs, credentialsMap, member
 	});
 
 	console.log("Waiting for Discord client to be ready...");
-	await waitForDiscordReady();
+	await new Promise(resolve => {
+		if (client.isReady()) {
+			resolve();
+		} else {
+			client.once("ready", resolve);
+		}
+	});
 
 	await new Promise(resolve => setTimeout(resolve, 2000));
 
@@ -400,7 +284,33 @@ async function handleNotInGuildMembers(currentGuildUUIDs, credentialsMap, member
 	if (!guildJson.success || !guildJson.guild) throw new Error("Failed to fetch guild data");
 	const members = guildJson.guild.members;
 
-	const { nicknameMap, memberObjectMap } = await getDiscordMemberMapping();
+	let nicknameMap = new Map();
+	let memberObjectMap = new Map();
+
+	if (discordGuild) {
+		try {
+			console.log("Fetching Discord server members...");
+			await discordGuild.members.fetch();
+			const discordMembers = discordGuild.members.cache;
+
+			discordMembers.forEach(member => {
+				const displayName = member.displayName;
+				const username = member.user.username;
+				nicknameMap.set(displayName.toLowerCase(), username);
+				memberObjectMap.set(displayName.toLowerCase(), member);
+				if (displayName !== username) {
+					nicknameMap.set(username.toLowerCase(), username);
+					memberObjectMap.set(username.toLowerCase(), member);
+				}
+			});
+
+			console.log(`Loaded ${nicknameMap.size} Discord member mappings`);
+		} catch (error) {
+			console.error("Error fetching Discord members:", error);
+		}
+	} else {
+		console.log("Discord guild not available, skipping Discord integration");
+	}
 
 	const currentData = {};
 	const statsToInsert = [];
@@ -448,7 +358,7 @@ async function handleNotInGuildMembers(currentGuildUUIDs, credentialsMap, member
 
 		if (existingCredentials) {
 			discordUsername = existingCredentials.discord_username;
-			discordMember = discordUsername ? findDiscordMemberByUsername(discordUsername, memberObjectMap) : null;
+			discordMember = discordUsername && discordUsername !== "undefined" ? memberObjectMap.get(discordUsername.toLowerCase()) || null : null;
 
 			if (existingCredentials.ign !== username && username !== "undefined") {
 				await logChange(`${existingCredentials.ign} changed their Minecraft username to ${username}.`);
@@ -458,7 +368,8 @@ async function handleNotInGuildMembers(currentGuildUUIDs, credentialsMap, member
 				}
 			}
 		} else {
-			discordUsername = findDiscordUsername(username, nicknameMap);
+			const lowerIGN = username !== "undefined" ? username.toLowerCase() : null;
+			discordUsername = lowerIGN ? nicknameMap.get(lowerIGN) || null : null;
 			discordMember = username !== "undefined" ? memberObjectMap.get(username.toLowerCase()) : null;
 		}
 
@@ -491,6 +402,8 @@ async function handleNotInGuildMembers(currentGuildUUIDs, credentialsMap, member
 		}
 	}
 
+	const currentGuildUUIDs = new Set(Object.keys(currentData));
+
 	for (const uuid of currentGuildUUIDs) {
 		if (currentData[uuid].discordUsername) {
 			const existing = credentialsMap.get(uuid);
@@ -506,8 +419,19 @@ async function handleNotInGuildMembers(currentGuildUUIDs, credentialsMap, member
 		}
 	}
 
-	const currentGuildUUIDs = new Set(Object.keys(currentData));
-	await handleNotInGuildMembers(currentGuildUUIDs, credentialsMap, memberObjectMap);
+	if (discordGuild) {
+		console.log("Checking for Discord members not in guild...");
+
+		for (const [uuid, credentials] of credentialsMap.entries()) {
+			if (currentGuildUUIDs.has(uuid)) continue;
+			if (!credentials.discord_username) continue;
+
+			const discordMember = credentials.discord_username && credentials.discord_username !== "undefined" ? memberObjectMap.get(credentials.discord_username.toLowerCase()) || null : null;
+			if (discordMember && discordMember.roles.cache.size > 1) {
+				await manageUserRoles(discordMember, null, null, false);
+			}
+		}
+	}
 
 	if (statsToInsert.length > 0) {
 		console.log(`Inserting ${statsToInsert.length} player stats to Supabase...`);
@@ -515,7 +439,50 @@ async function handleNotInGuildMembers(currentGuildUUIDs, credentialsMap, member
 	}
 
 	if (previousStatsMap.size > 0) {
-		await detectChangesAndLog(previousStatsMap, currentData, credentialsMap);
+		const previousUUIDs = new Set(previousStatsMap.keys());
+		const currentUUIDs = new Set(Object.keys(currentData));
+
+		const joined = [];
+		const left = [];
+
+		for (const uuid of currentUUIDs) {
+			if (!previousUUIDs.has(uuid)) {
+				joined.push(currentData[uuid].username);
+			}
+		}
+
+		for (const uuid of previousUUIDs) {
+			if (!currentUUIDs.has(uuid)) {
+				const credentials = credentialsMap.get(uuid);
+				if (credentials) {
+					left.push(credentials.ign);
+				}
+			}
+		}
+
+		if (joined.length) await logChange(`Welcome to our guild: ${joined.join(", ")}!`);
+		if (left.length) await logChange(`Members left: ${left.join(", ")}.`);
+
+		for (const uuid of currentUUIDs) {
+			if (previousUUIDs.has(uuid)) {
+				const prevStats = previousStatsMap.get(uuid);
+				const currData = currentData[uuid];
+
+				const prevCataBracket = getCatacombsBracket(prevStats.catacombsLevel);
+				const currCataBracket = getCatacombsBracket(currData.catacombsLevel);
+
+				if (prevCataBracket !== currCataBracket) {
+					await logChange(`Congratulations ${currData.username} on reaching Catacombs level bracket ${currCataBracket}! Enjoy your new role!`);
+				}
+
+				const prevSBBracket = getSkyblockBracket(prevStats.skyblockLevel);
+				const currSBBracket = getSkyblockBracket(currData.skyblockLevel);
+
+				if (prevSBBracket !== currSBBracket) {
+					await logChange(`Congratulations ${currData.username} on reaching Skyblock level bracket ${currSBBracket}! Enjoy your new role!`);
+				}
+			}
+		}
 	} else {
 		console.log("No previous stats found, skipping change detection.");
 	}
