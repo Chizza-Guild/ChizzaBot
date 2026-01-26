@@ -57,8 +57,8 @@ export async function getMostRecentStats() {
 
 	const statsMap = new Map();
 	data.forEach(stat => {
-		if (!statsMap.has(stat.uuid)) {
-			statsMap.set(stat.uuid, {
+		if (!statsMap.has(stat.uuid.replace(/-/g, ""))) {
+			statsMap.set(stat.uuid.replace(/-/g, ""), {
 				skyblockLevel: stat.skyblock_level,
 				catacombsLevel: stat.catacombs_level,
 				farmingXp: stat.farmingxp,
@@ -77,12 +77,12 @@ export async function insertPlayerStats(statsArray) {
 	}
 }
 
-export async function upsertPlayerCredentials(uuid, ign, discordUsername, status) {
+export async function upsertPlayerCredentials(uuid, ign, discordId, status) {
 	const { error } = await supabase.from("player_credentials").upsert(
 		{
 			uuid,
 			ign,
-			discord_username: discordUsername,
+			discord_id: discordId,
 			status: status,
 		},
 		{
@@ -104,7 +104,7 @@ export async function updatePlayerIgn(mc_uuid, newIgn) {
 }
 
 export async function updatePlayerStatus(dc_uuid, status) {
-	const { error } = await supabase.from("player_credentials").update({ status: status }).eq("discord_username", dc_uuid);
+	const { error } = await supabase.from("player_credentials").update({ status: status }).eq("discord_id", dc_uuid);
 
 	if (error) {
 		throw error;

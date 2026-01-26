@@ -248,7 +248,7 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 
 			if (existingCredentials) {
 				// User data already in supabase db
-				const discordId = existingCredentials.discord_username;
+				const discordId = existingCredentials.discord_id;
 
 				if (discordId && discordId != "undefined") {
 					discordMember = dcUsersById.get(discordId) ?? null;
@@ -308,7 +308,7 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 	for (const [discordId, discordMember] of dcUsersById.entries()) {
 		let linkedUUID = null;
 		for (const [uuid, credentials] of credentialsMap.entries()) {
-			if (credentials.discord_username == discordId) {
+			if (credentials.discord_id == discordId) {
 				linkedUUID = uuid;
 				break;
 			}
@@ -382,6 +382,6 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 		console.log("No previous stats found, skipping change detection.");
 	}
 
-	await logChange("Code running completed by " + codeRunner);
+	await logChange("Code running completed by " + codeRunner + ".");
 	if (client) client.destroy();
 })();
