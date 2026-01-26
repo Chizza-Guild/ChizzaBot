@@ -186,20 +186,14 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 		const discordMembers = discordGuild.members.cache;
 
 		discordMembers.forEach(member => {
-			const nickname = member.nickname ? member.nickname.toLowerCase() : null;
 			const discordId = member.user.id;
-
+			const nickname = member.displayName;
+            
 			dcUsersById.set(discordId, member);
-
-			if (nickname) {
-				dcUsersByNickname.set(nickname, member);
-			} else {
-				dcUsersByNickname.set(discordId, member);
-			}
+			dcUsersByNickname.set(nickname, member);
 		});
 
 		console.log(`Loaded ${dcUsersById.size} Discord members by ID`);
-		console.log(`Loaded ${dcUsersByNickname.size} Discord members by nickname`);
 	} catch (error) {
 		console.error("Error fetching Discord members:", error);
 	}
@@ -253,7 +247,9 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 			const existingCredentials = credentialsMap.get(member.uuid);
 
 			if (existingCredentials) {
+				// User data already in supabase db
 				const discordId = existingCredentials.discord_username;
+				console.log("discordid", discordId);
 
 				if (discordId && discordId != "undefined") {
 					discordMember = dcUsersById.get(discordId) ?? null;
@@ -277,11 +273,8 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 					}
 				}
 			} else {
-				const lowerIGN = username !== "undefined" ? username.toLowerCase() : null;
-
-				if (lowerIGN) {
-					discordMember = dcUsersByNickname.get(lowerIGN) ?? null;
-				}
+				// User data not in supabase db, we have to insert a row
+				discordMember = dcUsersByNickname.get(username) ?? null;
 			}
 
 			const discordIdFromMember = discordMember ? discordMember.user.id : null;
