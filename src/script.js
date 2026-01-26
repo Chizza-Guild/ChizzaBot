@@ -188,7 +188,7 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 		discordMembers.forEach(member => {
 			const discordId = member.user.id;
 			const nickname = member.displayName;
-            
+
 			dcUsersById.set(discordId, member);
 			dcUsersByNickname.set(nickname, member);
 		});
@@ -249,7 +249,6 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 			if (existingCredentials) {
 				// User data already in supabase db
 				const discordId = existingCredentials.discord_username;
-				console.log("discordid", discordId);
 
 				if (discordId && discordId != "undefined") {
 					discordMember = dcUsersById.get(discordId) ?? null;
@@ -263,7 +262,7 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 				if (discordMember && discordMember.nickname !== username) {
 					try {
 						await discordMember.setNickname(username);
-						await logChange(`Updated Discord nickname for ${discordMember.user.username} to ${username}`);
+						await logChange(`Updated Discord nickname for ${discordMember.user.username} to ${username}.`);
 					} catch (error) {
 						if (error.code == 50013) {
 							console.error("Bot lacks permissions to manage nicknames.");

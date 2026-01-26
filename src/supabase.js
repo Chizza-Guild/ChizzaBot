@@ -42,7 +42,7 @@ export async function getAllPlayerCredentials() {
 
 	const credentialsMap = new Map();
 	data.forEach(player => {
-		credentialsMap.set(player.uuid, player);
+		credentialsMap.set(player.uuid.replace(/-/g, ""), player);
 	});
 
 	return credentialsMap;
