@@ -39,10 +39,12 @@ export async function getAllPlayerCredentials() {
 	if (error) {
 		throw error;
 	}
+
 	const credentialsMap = new Map();
 	data.forEach(player => {
 		credentialsMap.set(player.uuid, player);
 	});
+
 	return credentialsMap;
 }
 
@@ -93,16 +95,16 @@ export async function upsertPlayerCredentials(uuid, ign, discordUsername, status
 	}
 }
 
-export async function updatePlayerIgn(uuid, newIgn) {
-	const { error } = await supabase.from("player_credentials").update({ ign: newIgn }).eq("uuid", uuid);
+export async function updatePlayerIgn(mc_uuid, newIgn) {
+	const { error } = await supabase.from("player_credentials").update({ ign: newIgn }).eq("uuid", mc_uuid);
 
 	if (error) {
 		throw error;
 	}
 }
 
-export async function updatePlayerStatus(uuid, status) {
-	const { error } = await supabase.from("player_credentials").update({ status: status }).eq("uuid", uuid);
+export async function updatePlayerStatus(dc_uuid, status) {
+	const { error } = await supabase.from("player_credentials").update({ status: status }).eq("discord_username", dc_uuid);
 
 	if (error) {
 		throw error;

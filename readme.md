@@ -15,7 +15,7 @@ SUPABASE_URL = xxxxx
 SUPABASE_SERVICE_ROLE_KEY = xxxxx  
 HYPIXEL_API_KEY = xxxxx --> Get from hypixel developer portal (needs to be refreshed every day)    
 
-Finally, run by typing: node script.js
+Finally, run by typing: node src/script.js
 
 ### For duplicating:
 
