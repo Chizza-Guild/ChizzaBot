@@ -14,6 +14,7 @@ Secondly, create a file in this folder named .env with these contents:
 SUPABASE_URL = xxxxx  
 SUPABASE_SERVICE_ROLE_KEY = xxxxx  
 HYPIXEL_API_KEY = xxxxx --> Get from hypixel developer portal (needs to be refreshed every day)    
+CODE_RUNNER_NAME = xxxxx --> Input any name
 
 Finally, run by typing: node src/script.js
 
