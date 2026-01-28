@@ -1,8 +1,7 @@
-Status column does not turn to false if someone leaves or not in guild
-
 ### Test:
 
 - Is it detecting changes for levels-catas?
+- Status column does not turn to false if someone leaves or not in guild
 
 We can collect more data like networth or skill average to keep track of statistics
 

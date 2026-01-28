@@ -35,7 +35,7 @@ export async function addChangelogEntry(text, timestamp) {
 }
 
 export async function getAllPlayerCredentials() {
-	const { data, error } = await supabase.from("player_credentials").select("*");
+	const { data, error } = await supabase.from("player_credentials").select("*").eq("status", "true");
 	if (error) {
 		throw error;
 	}
