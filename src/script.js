@@ -312,14 +312,11 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 			}
 		}
 
-		const entry = Object.entries(currentData).find(([uuid, data]) => data.discordIdFromMember == discordId);
-
-		if (entry) {
-			const [linkedUUID, stats] = entry;
-			const skyBracket = getSkyblockBracket(stats.skyblockLevel);
-			const cataBracket = getCatacombsBracket(stats.catacombsLevel);
+		if (linkedUUID) {
+			const skyBracket = getSkyblockBracket(statsToInsert.find(item => item.uuid == linkedUUID)?.skyblock_level);
+			const cataBracket = getCatacombsBracket(statsToInsert.find(item => item.uuid == linkedUUID)?.catacombs_level);
 			await manageUserRoles(discordMember, skyBracket, cataBracket, true);
-		} else if (discordMember.roles.cache.size > 1) {
+		} else {
 			await manageUserRoles(discordMember, null, null, false);
 		}
 	}
@@ -362,14 +359,14 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 				const currentStats = currentData[uuid];
 
 				const previousCataBracket = getCatacombsBracket(previousStats.catacombsLevel);
-				const currentCataBracket = getCatacombsBracket(currentStats.catacombsLevel);
+				const currentCataBracket = getCatacombsBracket(statsToInsert.find(item => item.uuid == uuid)?.catacombs_level);
 
 				if (previousCataBracket !== currentCataBracket) {
 					await logChange(`Congratulations ${currentStats.username} on reaching Catacombs level bracket ${currentCataBracket}! Enjoy your new role!`);
 				}
 
 				const previousSBBracket = getSkyblockBracket(previousStats.skyblockLevel);
-				const currentSBBracket = getSkyblockBracket(currentStats.skyblockLevel);
+				const currentSBBracket = getSkyblockBracket(statsToInsert.find(item => item.uuid == uuid)?.skyblock_level);
 
 				if (previousSBBracket !== currentSBBracket) {
 					await logChange(`Congratulations ${currentStats.username} on reaching Skyblock level bracket ${currentSBBracket}! Enjoy your new role!`);
