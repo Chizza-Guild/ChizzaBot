@@ -122,9 +122,16 @@ if (profileApiJson.success && profileApiJson.profiles.length) {
 		}
 	}
 
-	console.log("=== TOTALS ===");
+	console.log("=== misc ===");
 	console.log("kill count:", totals.kills);
 	console.log("death count:", totals.deaths);
+	console.log("magical power:", highest.magical_power);
+	console.log("fairy souls:", highest.fairy_souls);
+	console.log("mage reputation:", highest.mage_reputation);
+	console.log("barbarian reputation:", highest.barbarian_reputation);
+
+	console.log("experienc");
+	console.log("ADD SKYBLOCK LEVEL BUT IN XP FORM HERE");
 	console.log("fishing xp:", totals.fishing_xp);
 	console.log("alchemy xp:", totals.alchemy_xp);
 	console.log("dungeoneering xp:", totals.dungeoneering_xp);
@@ -137,16 +144,40 @@ if (profileApiJson.success && profileApiJson.profiles.length) {
 	console.log("social xp:", totals.social_xp);
 	console.log("carpentry xp:", totals.carpentry_xp);
 	console.log("combat xp:", totals.combat_xp);
+
+	console.log("mONEY");
+	console.log("ADD NETWORTH HERE");
 	console.log("coin purse:", totals.coin_purse);
+	console.log("bank account:", totals.bank_account);
 	console.log("mote purse:", totals.mote_purse);
 	console.log("copper:", totals.copper);
-	console.log("bank account:", totals.bank_account);
+
+	console.log("mining");
 	console.log("mineshafts entered:", totals.mineshafts_entered);
+	console.log("mithril powder:", highest.mithril_powder);
+	console.log("gemstone powder:", highest.gemstone_powder);
+	console.log("glacite powder:", highest.glacite_powder);
 
 	console.log("\n=== DUNGEONS AND KUUDRA ===");
 	console.log("normal floors:", normalFloors);
 	console.log("master floors:", masterFloors);
 	console.log("kuudra comps:", kuudraTiers);
+
+	console.log("\n=== dubngeons ===");
+	console.log("total secrets:", highest.total_secrets);
+	console.log("healer xp:", highest.healer_xp);
+	console.log("mage xp:", highest.mage_xp);
+	console.log("berserk xp:", highest.berserk_xp);
+	console.log("archer xp:", highest.archer_xp);
+	console.log("tank xp:", highest.tank_xp);
+
+	console.log("slayers");
+	console.log("zombie slayer xp:", highest.zombie_slayer_xp);
+	console.log("spider slayer xp:", highest.spider_slayer_xp);
+	console.log("wolf slayer xp:", highest.wolf_slayer_xp);
+	console.log("enderman slayer xp:", highest.enderman_slayer_xp);
+	console.log("blaze slayer xp:", highest.blaze_slayer_xp);
+	console.log("vampire slayer xp:", highest.vampire_slayer_xp);
 
 	console.log("\n=== SELECTED PROFILE ===");
 	console.log("selected power:", selectedPower);
