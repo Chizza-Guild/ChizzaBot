@@ -286,10 +286,7 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 
 			currentData[member.uuid] = {
 				username,
-				catacombsLevel,
-				skyblockLevel,
 				discordIdFromMember,
-				farmingXp: totalFarmingXp,
 			};
 
 			statsToInsert.push({
