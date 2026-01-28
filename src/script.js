@@ -100,7 +100,7 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 }
 
 (async () => {
-    if (!codeRunner) return console.log("No code runner found. Please add it in the .env file.");
+	if (!codeRunner) return console.log("No code runner found. Please add it in the .env file.");
 	console.log("Fetching .env from supabase...");
 	const env = await loadEnvFromSupabase();
 
