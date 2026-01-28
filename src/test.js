@@ -1,3 +1,6 @@
+let apiKey = "7c5a9de4-ece6-43c8-8bcb-342d7c1e4436";
+let uuid = "79d7cb13-d0ed-4554-bdd0-4767c74de337";
+
 const profileApi = await fetch(`https://api.hypixel.net/v2/skyblock/profiles?key=${apiKey}&uuid=${uuid}`);
 const profileApiJson = await profileApi.json();
 
@@ -35,6 +38,7 @@ if (profileApiJson.success && profileApiJson.profiles.length) {
 	};
 
 	const highest = {
+        experience : 0,
 		magical_power: 0,
 		fairy_souls: 0,
 		total_secrets: 0,
@@ -111,9 +115,27 @@ if (profileApiJson.success && profileApiJson.profiles.length) {
 
 		totals.mineshafts_entered += data.glacite_player_data?.mineshafts_entered || 0;
 
+        highest.experience = Math.max(highest.experience, data.leveling?.experience || 0)
 		highest.magical_power = Math.max(highest.magical_power, data.accessory_bag_storage?.highest_magical_power || 0);
 		highest.fairy_souls = Math.max(highest.fairy_souls, data.fairy_soul?.total_collected || 0);
 		highest.total_secrets = Math.max(highest.total_secrets, data.dungeons?.secrets || 0);
+        highest.healer_xp = Math.floor(Math.max(highest.healer_xp, data.dungeons?.player_classes?.healer?.experience || 0));
+        highest.mage_xp = Math.floor(Math.max(highest.mage_xp, data.dungeons?.player_classes?.mage?.experience || 0));
+        highest.berserk_xp = Math.floor(Math.max(highest.berserk_xp, data.dungeons?.player_classes?.berserk?.experience || 0));
+        highest.archer_xp = Math.floor(Math.max(highest.archer_xp, data.dungeons?.player_classes?.archer?.experience || 0));
+        highest.tank_xp = Math.floor(Math.max(highest.tank_xp, data.dungeons?.player_classes?.tank?.experience || 0));
+        highest.mage_reputation = Math.max(highest.mage_reputation, data.nether_island_player_data?.mages_reputation || 0);
+        highest.barbarian_reputation = Math.max(highest.barbarian_reputation, data.nether_island_player_data?.barbarians_reputation || 0);
+        highest.mithril_powder = Math.max(highest.mithril_powder, data.mining_core?.powder_mithril || 0); 
+        highest.gemstone_powder = Math.max(highest.gemstone_powder, data.mining_core?.powder_gemstone || 0); 
+        highest.glacite_powder = Math.max(highest.glacite_powder, data.mining_core?.powder_glacite || 0);
+        highest.zombie_slayer_xp = Math.max(highest.zombie_slayer_xp, data?.slayer?.slayer_bosses?.zombie?.xp || 0);
+        highest.spider_slayer_xp = Math.max(highest.spider_slayer_xp, data?.slayer?.slayer_bosses?.spider?.xp || 0);
+        highest.wolf_slayer_xp = Math.max(highest.wolf_slayer_xp, data?.slayer?.slayer_bosses?.wolf?.xp || 0);
+        highest.enderman_slayer_xp = Math.max(highest.enderman_slayer_xp, data?.slayer?.slayer_bosses?.enderman?.xp || 0);
+        highest.blaze_slayer_xp = Math.max(highest.blaze_slayer_xp, data?.slayer?.slayer_bosses?.blaze?.xp || 0);
+        highest.mage_reputation = Math.max(highest.mage_reputation, data.nether_island_player_data?.mages_reputation || 0);
+        highest.vampire_slayer_xp = Math.max(highest.vampire_slayer_xp, data?.slayer?.slayer_bosses?.vampire?.xp || 0);		
 
 		if (profile.selected) {
 			selectedPower = data.accessory_bag_storage?.selected_power || "none";
@@ -122,65 +144,92 @@ if (profileApiJson.success && profileApiJson.profiles.length) {
 		}
 	}
 
-	console.log("=== misc ===");
-	console.log("kill count:", totals.kills);
-	console.log("death count:", totals.deaths);
-	console.log("magical power:", highest.magical_power);
-	console.log("fairy souls:", highest.fairy_souls);
-	console.log("mage reputation:", highest.mage_reputation);
-	console.log("barbarian reputation:", highest.barbarian_reputation);
+	const experiences = [
+        highest.experience,
+        totals.fishing_xp,
+        totals.alchemy_xp,
+        totals.dungeoneering_xp,
+        totals.runecrafting_xp,
+        totals.mining_xp,
+        totals.farming_xp,
+        totals.enchanting_xp,
+        totals.taming_xp,
+        totals.foraging_xp,
+        totals.social_xp,
+        totals.carpentry_xp,
+        totals.combat_xp
+    ];
 
-	console.log("experienc");
-	console.log("ADD SKYBLOCK LEVEL BUT IN XP FORM HERE");
-	console.log("fishing xp:", totals.fishing_xp);
-	console.log("alchemy xp:", totals.alchemy_xp);
-	console.log("dungeoneering xp:", totals.dungeoneering_xp);
-	console.log("runecrafting xp:", totals.runecrafting_xp);
-	console.log("mining xp:", totals.mining_xp);
-	console.log("farming xp:", totals.farming_xp);
-	console.log("enchanting xp:", totals.enchanting_xp);
-	console.log("taming xp:", totals.taming_xp);
-	console.log("foraging xp:", totals.foraging_xp);
-	console.log("social xp:", totals.social_xp);
-	console.log("carpentry xp:", totals.carpentry_xp);
-	console.log("combat xp:", totals.combat_xp);
+    const money = [
+        "Networth Here",
+        totals.coin_purse,
+        totals.bank_account,
+        totals.mote_purse,
+        totals.copper
+    ]
 
-	console.log("mONEY");
-	console.log("ADD NETWORTH HERE");
-	console.log("coin purse:", totals.coin_purse);
-	console.log("bank account:", totals.bank_account);
-	console.log("mote purse:", totals.mote_purse);
-	console.log("copper:", totals.copper);
+    const mining = [
+        totals.mineshafts_entered,
+        highest.mithril_powder,
+        highest.gemstone_powder,
+        highest.glacite_powder
+    ]
 
-	console.log("mining");
-	console.log("mineshafts entered:", totals.mineshafts_entered);
-	console.log("mithril powder:", highest.mithril_powder);
-	console.log("gemstone powder:", highest.gemstone_powder);
-	console.log("glacite powder:", highest.glacite_powder);
+    const completions = [
+        normalFloors.f0,
+        normalFloors.f1,
+        normalFloors.f2,
+        normalFloors.f3,
+        normalFloors.f4,
+        normalFloors.f5,
+        normalFloors.f6,
+        normalFloors.f7,
+        masterFloors.m1,
+        masterFloors.m2,
+        masterFloors.m3,
+        masterFloors.m4,
+        masterFloors.m5,
+        masterFloors.m6,
+        masterFloors.m7,
+        kuudraTiers.none,
+        kuudraTiers.hot,
+        kuudraTiers.burning,
+        kuudraTiers.fiery,
+        kuudraTiers.infernal,
+    ];
 
-	console.log("\n=== DUNGEONS AND KUUDRA ===");
-	console.log("normal floors:", normalFloors);
-	console.log("master floors:", masterFloors);
-	console.log("kuudra comps:", kuudraTiers);
+    const dungeon = [
+        highest.total_secrets,
+        highest.healer_xp,
+        highest.mage_xp,
+        highest.berserk_xp,
+        highest.archer_xp,
+        highest.tank_xp
+    ];
 
-	console.log("\n=== dubngeons ===");
-	console.log("total secrets:", highest.total_secrets);
-	console.log("healer xp:", highest.healer_xp);
-	console.log("mage xp:", highest.mage_xp);
-	console.log("berserk xp:", highest.berserk_xp);
-	console.log("archer xp:", highest.archer_xp);
-	console.log("tank xp:", highest.tank_xp);
+    const slayers = [
+        highest.zombie_slayer_xp,
+        highest.spider_slayer_xp,
+        highest.wolf_slayer_xp,
+        highest.enderman_slayer_xp,
+        highest.blaze_slayer_xp,
+        highest.vampire_slayer_xp
+    ];
 
-	console.log("slayers");
-	console.log("zombie slayer xp:", highest.zombie_slayer_xp);
-	console.log("spider slayer xp:", highest.spider_slayer_xp);
-	console.log("wolf slayer xp:", highest.wolf_slayer_xp);
-	console.log("enderman slayer xp:", highest.enderman_slayer_xp);
-	console.log("blaze slayer xp:", highest.blaze_slayer_xp);
-	console.log("vampire slayer xp:", highest.vampire_slayer_xp);
+    const misc = [
+        totals.kills,
+        totals.deaths,
+        highest.magical_power,
+        highest.fairy_souls,
+        highest.mage_reputation,
+        highest.barbarian_reputation
+    ];
 
-	console.log("\n=== SELECTED PROFILE ===");
-	console.log("selected power:", selectedPower);
-	console.log("selected dungeon class:", selectedDungeonClass);
-	console.log("selected arrow type:", selectedArrowType);
+    const selections = [
+        selectedPower,
+        selectedDungeonClass,
+        selectedArrowType
+    ];
+
+    console.log(experiences,money,mining,completions,dungeon,slayers,misc,selections);
 }

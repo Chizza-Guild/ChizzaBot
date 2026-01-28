@@ -67,7 +67,7 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 	if (!discordMember) return;
 
 	const allRoles = discordGuild.roles.cache;
-	const notInGuildRole = allRoles.find(r => r.name === "Not in guild");
+	const notInGuildRole = allRoles.find(role => role.name == "Not in guild");
 
 	try {
 		const desiredRoles = new Set();
@@ -75,8 +75,8 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 		if (!isInGuild) {
 			if (notInGuildRole) desiredRoles.add(notInGuildRole.id);
 		} else {
-			const sbRole = allRoles.find(r => r.name === skyblockBracket);
-			const cataRole = allRoles.find(r => r.name === catacombsBracket);
+			const sbRole = allRoles.find(role => role.name == skyblockBracket);
+			const cataRole = allRoles.find(role => role.name == catacombsBracket);
 
 			if (sbRole) desiredRoles.add(sbRole.id);
 			if (cataRole) desiredRoles.add(cataRole.id);
@@ -85,7 +85,7 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 		const managedRoles = [...Object.values(SKYBLOCK_ROLES), ...Object.values(CATACOMBS_ROLES), "Not in guild"];
 
 		for (const roleName of managedRoles) {
-			const role = allRoles.find(r => r.name == roleName);
+			const role = allRoles.find(role => role.name == roleName);
 			if (!role) continue;
 
 			const hasRole = discordMember.roles.cache.has(role.id);
