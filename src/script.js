@@ -2,7 +2,8 @@ require("dotenv").config();
 const fetch = require("node-fetch");
 const { Client, GatewayIntentBits } = require("discord.js");
 const { checkWordleResults, parseWordleMessage } = require("./wordle.js");
-const { loadEnvFromSupabase, loadBannedPlayers, addChangelogEntry, getAllPlayerCredentials, getMostRecentStats, insertPlayerStats, upsertPlayerCredentials, updatePlayerIgn, updatePlayerStatus } = require("./supabase.js");
+const { loadEnvFromSupabase, loadBannedPlayers, addChangelogEntry, getAllPlayerCredentials, getMostRecentStats, insertPlayerStats, insertPlayerStatistics, upsertPlayerCredentials, updatePlayerIgn, updatePlayerStatus } = require("./supabase.js");
+const { getDataFromPlayer, getDungeonLevel, getCatacombsBracket, getSkyblockBracket } = require("./datafetch.js");
 
 const apiKey = process.env.HYPIXEL_API_KEY;
 const codeRunner = process.env.CODE_RUNNER_NAME;
@@ -20,32 +21,6 @@ let guildName;
 let botTextSendChannelId;
 let wordleChannelId;
 let serverId;
-
-function getDungeonLevel(experience) {
-	const catacombsXpTable = [50, 75, 110, 160, 230, 330, 470, 670, 950, 1340, 1890, 2665, 3760, 5260, 7380, 10300, 14400, 20000, 27600, 38000, 52500, 71500, 97000, 132000, 180000, 243000, 328000, 445000, 600000, 800000, 1065000, 1410000, 1900000, 2500000, 3300000, 4300000, 5600000, 7200000, 9200000, 12000000, 15000000, 19000000, 24000000, 30000000, 38000000, 48000000, 60000000, 75000000, 93000000, 116250000];
-	let totalExperience = 0;
-	for (let levelIndex = 0; levelIndex < catacombsXpTable.length; levelIndex++) {
-		totalExperience += catacombsXpTable[levelIndex];
-		if (experience < totalExperience) return levelIndex;
-	}
-	return 50;
-}
-
-function getCatacombsBracket(level) {
-	if (level >= 50) return "Cata 50+";
-	if (level >= 45) return "Cata 45+";
-	if (level >= 40) return "Cata 40+";
-	if (level >= 35) return "Cata 35+";
-	if (level >= 30) return "Cata 30+";
-	return null;
-}
-
-function getSkyblockBracket(level) {
-	const low = Math.floor(level / 40) * 40;
-	const high = low + 39;
-	if (high > 480) return `480+`;
-	return `${low} - ${high}`;
-}
 
 async function logChange(message) {
 	console.log(message);
@@ -201,6 +176,7 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 
 	const currentData = {};
 	const statsToInsert = [];
+	const newStatsToInsert = [];
 	const currentTimestamp = new Date().toISOString();
 	let count = 0;
 
@@ -212,35 +188,35 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 			const response = await fetch(`https://sessionserver.mojang.com/session/minecraft/profile/${member.uuid}`);
 			let username = response.ok ? (await response.json()).name : "undefined";
 
-			if (bannedSet.has(member.uuid)) {
-				await logChange(`Banned player detected in guild: ${username} (${member.uuid})`);
-			}
+			if (bannedSet.has(member.uuid)) await logChange(`Banned player detected in guild: ${username} (${member.uuid})`);
 
 			let catacombsLevel = 0;
 			let skyblockLevel = 0;
 			let totalFarmingXp = 0;
+			let catacombsMaxXP = 0;
 
 			const profileApi = await fetch(`https://api.hypixel.net/v2/skyblock/profiles?key=${apiKey}&uuid=${member.uuid}`);
 			const profileApiJson = await profileApi.json();
 
-			if (profileApiJson.success && profileApiJson.profiles.length) {
-				let catacombsMaxXP = 0;
-				for (const profile of profileApiJson.profiles) {
-					const data = profile.members?.[member.uuid];
-					if (!data) continue;
+			for (const profile of profileApiJson.profiles) {
+				const data = profile.members?.[member.uuid];
+				if (!data) continue;
 
-					const catacombsXp = data.dungeons?.dungeon_types?.catacombs?.experience || 0;
-					if (catacombsXp > catacombsMaxXP) catacombsMaxXP = catacombsXp;
+				// Old database calculations
+				const catacombsXp = data.dungeons?.dungeon_types?.catacombs?.experience || 0;
+				if (catacombsXp > catacombsMaxXP) catacombsMaxXP = catacombsXp;
 
-					const skyblockXp = Math.floor((data.leveling?.experience || 0) / 100);
-					if (skyblockXp > skyblockLevel) skyblockLevel = skyblockXp;
+				const skyblockXp = Math.floor((data.leveling?.experience || 0) / 100);
+				if (skyblockXp > skyblockLevel) skyblockLevel = skyblockXp;
 
-					const addedFarmingXp = Math.trunc(data.player_data?.experience?.SKILL_FARMING || 0);
-					totalFarmingXp += addedFarmingXp;
-				}
-				catacombsLevel = getDungeonLevel(catacombsMaxXP);
+				const addedFarmingXp = Math.trunc(data.player_data?.experience?.SKILL_FARMING || 0);
+				totalFarmingXp += addedFarmingXp;
 			}
 
+			// New database calculations. When enough data is gathered, old database calculations will be deleted.
+			const allData = await getDataFromPlayer(profileApiJson, member.uuid);
+
+			catacombsLevel = getDungeonLevel(catacombsMaxXP);
 			const skyBracket = getSkyblockBracket(skyblockLevel);
 			const cataBracket = getCatacombsBracket(catacombsLevel);
 
@@ -249,7 +225,7 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 
 			if (existingCredentials) {
 				// User data already in supabase db
-				const discordId = existingCredentials.discord_id;
+				const discordId = existingCredentials.discord_id ?? dcUsersByNickname.get(username)?.user?.id ?? null;
 
 				if (discordId && discordId != "undefined") {
 					discordMember = dcUsersById.get(discordId) ?? null;
@@ -296,6 +272,18 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 				catacombs_level: catacombsLevel,
 				farmingxp: totalFarmingXp,
 			});
+
+			newStatsToInsert.push({
+				uuid: member.uuid,
+				experiences: allData.experiences,
+				money: allData.money,
+				mining: allData.mining,
+				completions: allData.completions,
+				dungeon: allData.dungeon,
+				slayers: allData.slayers,
+				misc: allData.misc,
+				selections: allData.selections,
+			});
 		} catch (error) {
 			console.log(error);
 		}
@@ -324,6 +312,11 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 	if (statsToInsert.length > 0) {
 		console.log(`Inserting ${statsToInsert.length} player stats to Supabase...`);
 		await insertPlayerStats(statsToInsert);
+	}
+
+	if (newStatsToInsert.length > 0) {
+		console.log(`Inserting ${newStatsToInsert.length} new player stats to Supabase...`);
+		await insertPlayerStatistics(newStatsToInsert);
 	}
 
 	if (previousStatsMap.size > 0) {
@@ -378,5 +371,6 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 	}
 
 	await logChange("Code running completed by " + codeRunner + ".");
+	process.exit(0);
 	if (client) client.destroy();
 })();

@@ -4,9 +4,8 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SER
 
 export async function loadEnvFromSupabase() {
 	const { data, error } = await supabase.from("misc_settings").select("*").single();
-	if (error) {
-		throw error;
-	}
+	if (error) throw error;
+
 	return {
 		dcToken: data.dc_token,
 		guildName: data.guild_name,
@@ -18,27 +17,19 @@ export async function loadEnvFromSupabase() {
 
 export async function loadBannedPlayers() {
 	const { data, error } = await supabase.from("banned_uuids").select("uuid");
-	if (error) {
-		throw error;
-	}
+	if (error) throw error;
+
 	return new Set(data.map(row => row.uuid));
 }
 
 export async function addChangelogEntry(text, timestamp) {
-	const { error } = await supabase.from("changelog").insert({
-		text,
-		timestamp,
-	});
-	if (error) {
-		throw error;
-	}
+	const { error } = await supabase.from("changelog").insert({ text, timestamp });
+	if (error) throw error;
 }
 
 export async function getAllPlayerCredentials() {
 	const { data, error } = await supabase.from("player_credentials").select("*").eq("status", "true");
-	if (error) {
-		throw error;
-	}
+	if (error) throw error;
 
 	const credentialsMap = new Map();
 	data.forEach(player => {
@@ -50,10 +41,7 @@ export async function getAllPlayerCredentials() {
 
 export async function getMostRecentStats() {
 	const { data, error } = await supabase.from("player_stats").select("uuid, timestamp, skyblock_level, catacombs_level, farmingxp").order("timestamp", { ascending: false });
-
-	if (error) {
-		throw error;
-	}
+	if (error) throw error;
 
 	const statsMap = new Map();
 	data.forEach(stat => {
@@ -72,8 +60,15 @@ export async function getMostRecentStats() {
 
 export async function insertPlayerStats(statsArray) {
 	const { error } = await supabase.from("player_stats").insert(statsArray);
-	if (error) {
-		throw error;
+	if (error) throw error;
+}
+
+export async function insertPlayerStatistics(newStatsToInsert) {
+	try {
+		const { data, error } = await supabase.from("player_all_statistics").upsert(newStatsToInsert, { onConflict: ["uuid", "day"] });
+		if (error) throw error;
+	} catch (err) {
+		console.error("Supabase insert failed:", err);
 	}
 }
 
@@ -90,23 +85,15 @@ export async function upsertPlayerCredentials(uuid, ign, discordId, status) {
 		},
 	);
 
-	if (error) {
-		throw error;
-	}
+	if (error) throw error;
 }
 
 export async function updatePlayerIgn(mc_uuid, newIgn) {
 	const { error } = await supabase.from("player_credentials").update({ ign: newIgn }).eq("uuid", mc_uuid);
-
-	if (error) {
-		throw error;
-	}
+	if (error) throw error;
 }
 
 export async function updatePlayerStatus(dc_uuid, status) {
 	const { error } = await supabase.from("player_credentials").update({ status: status }).eq("discord_id", dc_uuid);
-
-	if (error) {
-		throw error;
-	}
+	if (error) throw error;
 }
