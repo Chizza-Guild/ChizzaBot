@@ -3,12 +3,13 @@ const fetch = require("node-fetch");
 const { Client, GatewayIntentBits } = require("discord.js");
 const { checkWordleResults, parseWordleMessage } = require("./wordle.js");
 const { loadEnvFromSupabase, loadBannedPlayers, addChangelogEntry, getAllPlayerCredentials, getMostRecentStats, insertPlayerStats, insertPlayerStatistics, upsertPlayerCredentials, updatePlayerIgn, updatePlayerStatus } = require("./supabase.js");
-const { getDataFromPlayer, getDungeonLevel, getCatacombsBracket, getSkyblockBracket } = require("./datafetch.js");
+const { getDataFromPlayer, getDungeonLevel, getCatacombsBracket, getSkyblockBracket, getNetworthBracket } = require("./datafetch.js");
 
 const apiKey = process.env.HYPIXEL_API_KEY;
 const codeRunner = process.env.CODE_RUNNER_NAME;
 const SKYBLOCK_ROLES = ["480+", "440 - 479", "400 - 439", "360 - 399", "320 - 359", "280 - 319", "240 - 279", "200 - 239", "160 - 199", "120 - 159", "80 - 119", "40 - 79", "0 - 39"];
 const CATACOMBS_ROLES = ["Cata 30+", "Cata 35+", "Cata 40+", "Cata 45+", "Cata 50+"];
+const NETWORTH_ROLES = ["1B+", "5B+", "10B+", "25B+", "100B+"];
 const client = new Client({
 	intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
 });
@@ -38,7 +39,7 @@ function warnWithBigText(message) {
 	process.exit(1);
 }
 
-async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket, isInGuild) {
+async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket, networthBracket, isInGuild) {
 	if (!discordMember) return;
 
 	const allRoles = discordGuild.roles.cache;
@@ -52,12 +53,14 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 		} else {
 			const sbRole = allRoles.find(role => role.name == skyblockBracket);
 			const cataRole = allRoles.find(role => role.name == catacombsBracket);
+			const nwRole = allRoles.find(role => role.name == networthBracket);
 
 			if (sbRole) desiredRoles.add(sbRole.id);
 			if (cataRole) desiredRoles.add(cataRole.id);
+			if (nwRole) desiredRoles.add(nwRole.id);
 		}
 
-		const managedRoles = [...Object.values(SKYBLOCK_ROLES), ...Object.values(CATACOMBS_ROLES), "Not in guild"];
+		const managedRoles = [...Object.values(SKYBLOCK_ROLES), ...Object.values(CATACOMBS_ROLES), ...Object.values(NETWORTH_ROLES), "Not in guild"];
 
 		for (const roleName of managedRoles) {
 			const role = allRoles.find(role => role.name == roleName);
@@ -217,8 +220,6 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 			const allData = await getDataFromPlayer(profileApiJson, member.uuid);
 
 			catacombsLevel = getDungeonLevel(catacombsMaxXP);
-			const skyBracket = getSkyblockBracket(skyblockLevel);
-			const cataBracket = getCatacombsBracket(catacombsLevel);
 
 			let discordMember = null;
 			const existingCredentials = credentialsMap.get(member.uuid);
@@ -303,9 +304,10 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 		if (linkedUUID) {
 			const skyBracket = getSkyblockBracket(statsToInsert.find(item => item.uuid == linkedUUID)?.skyblock_level);
 			const cataBracket = getCatacombsBracket(statsToInsert.find(item => item.uuid == linkedUUID)?.catacombs_level);
-			await manageUserRoles(discordMember, skyBracket, cataBracket, true);
+			const networthBracket = getNetworthBracket(newStatsToInsert.find(item => item.uuid == linkedUUID)?.money[0]);
+			await manageUserRoles(discordMember, skyBracket, cataBracket, networthBracket, true);
 		} else {
-			await manageUserRoles(discordMember, null, null, false);
+			await manageUserRoles(discordMember, null, null, null, false);
 		}
 	}
 
