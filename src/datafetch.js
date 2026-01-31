@@ -95,8 +95,12 @@ export async function getDataFromPlayer(profileApiJson, uuid) {
 	let selectedPower = "none";
 	let selectedDungeonClass = "none";
 	let selectedArrowType = "none";
+	let skillApiClosed = "no";
+	let inventoryApiClosed = "no";
 
 	for (const profile of profileApiJson.profiles) {
+		if (profile?.game_mode == "bingo") continue;
+
 		const data = profile.members?.[uuid.replace(/-/g, "")];
 		if (!data) continue;
 
@@ -176,23 +180,22 @@ export async function getDataFromPlayer(profileApiJson, uuid) {
 			selectedDungeonClass = data.dungeons?.selected_dungeon_class || "none";
 			selectedArrowType = data.item_data?.favorite_arrow || "none";
 		}
+
+		if (data.leveling?.experience > 20000) {
+			// If level is over 200, we check if any API's are closed
+			inventoryApiClosed = !data?.inventory;
+			skillApiClosed = !data?.player_data?.experience;
+		}
 	}
 
 	const experiences = [highest.experience, totals.fishing_xp, totals.alchemy_xp, totals.dungeoneering_xp, totals.runecrafting_xp, totals.mining_xp, totals.farming_xp, totals.enchanting_xp, totals.taming_xp, totals.foraging_xp, totals.social_xp, totals.carpentry_xp, totals.combat_xp];
-
 	const money = [totals.networth, totals.coin_purse, totals.bank_account, totals.mote_purse, totals.copper];
-
 	const mining = [totals.mineshafts_entered, totals.mithril_powder, totals.gemstone_powder, totals.glacite_powder];
-
 	const completions = [normalFloors.f0, normalFloors.f1, normalFloors.f2, normalFloors.f3, normalFloors.f4, normalFloors.f5, normalFloors.f6, normalFloors.f7, masterFloors.m1, masterFloors.m2, masterFloors.m3, masterFloors.m4, masterFloors.m5, masterFloors.m6, masterFloors.m7, kuudraTiers.none, kuudraTiers.hot, kuudraTiers.burning, kuudraTiers.fiery, kuudraTiers.infernal];
-
 	const dungeon = [totals.total_secrets, totals.healer_xp, totals.mage_xp, totals.berserk_xp, totals.archer_xp, totals.tank_xp];
-
 	const slayers = [totals.zombie_slayer_xp, totals.spider_slayer_xp, totals.wolf_slayer_xp, totals.enderman_slayer_xp, totals.blaze_slayer_xp, totals.vampire_slayer_xp];
-
 	const misc = [totals.kills, totals.deaths, highest.magical_power, highest.fairy_souls, highest.mage_reputation, highest.barbarian_reputation];
-
-	const selections = [selectedPower, selectedDungeonClass, selectedArrowType];
+	const selections = [selectedPower, selectedDungeonClass, selectedArrowType, skillApiClosed, inventoryApiClosed];
 
 	return { experiences, money, mining, completions, dungeon, slayers, misc, selections };
 }
