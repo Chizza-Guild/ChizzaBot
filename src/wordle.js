@@ -1,6 +1,5 @@
 export function parseWordleMessage(content) {
 	const patterns = [/X\/6:\s*(<@\d+>(?:\s+<@\d+>)*)/, /X\/6[:\s]+(<@[^>]+>(?:\s+<@[^>]+>)*)/];
-
 	for (const pattern of patterns) {
 		const match = content.match(pattern);
 		if (match) {
@@ -13,7 +12,6 @@ export function parseWordleMessage(content) {
 			}
 		}
 	}
-
 	if (content.includes("X/6")) {
 		const afterX6 = content.split("X/6")[1];
 		if (afterX6) {
@@ -26,7 +24,6 @@ export function parseWordleMessage(content) {
 			}
 		}
 	}
-
 	return [];
 }
 
@@ -35,18 +32,15 @@ export async function checkWordleResults(wordleChannel) {
 		console.log("Wordle channel not configured, skipping Wordle check");
 		return;
 	}
-
 	try {
 		console.log("Checking for today's Wordle results...");
-
 		const today = new Date().toISOString().split("T")[0];
 		const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
-
 		console.log("Looking for messages from:", today);
-
 		const messages = await wordleChannel.messages.fetch({ limit: 50 });
 		console.log(`Fetched ${messages.size} messages`);
 
+		const botId = wordleChannel.client.user.id;
 		let foundTodaysWordle = false;
 
 		function formatMentions(ids) {
@@ -55,23 +49,26 @@ export async function checkWordleResults(wordleChannel) {
 			return `${mentions.slice(0, -1).join(", ")} and ${mentions.slice(-1)}`;
 		}
 
+		const botSentMessageToday = messages.some(msg => msg.author.id === botId && msg.createdAt.toISOString().split("T")[0] === today);
+
+		if (botSentMessageToday) {
+			console.log("Bot has already sent a message in this channel today, skipping");
+			return;
+		}
+
 		for (const message of messages.values()) {
 			const messageDate = message.createdAt.toISOString().split("T")[0];
-
 			if (messageDate !== today) {
 				continue;
 			}
 
 			const content = message.content;
-
 			if (content.includes("Here are yesterday's results:") && content.includes("X/6")) {
 				console.log("Found today's Wordle results message!");
 				foundTodaysWordle = true;
 
 				const failedUserIds = parseWordleMessage(content);
-
 				console.log(`Found ${failedUserIds.length} failed Wordle attempts.`);
-
 				const mentionsFormatted = formatMentions(failedUserIds);
 				const messageTemplates = failedUserIds.length === 1 ? singleFailureMessages : multipleFailureMessages;
 				const replyText = messageTemplates[Math.floor(Math.random() * messageTemplates.length)].replace("%s", mentionsFormatted);
@@ -80,7 +77,6 @@ export async function checkWordleResults(wordleChannel) {
 					await message.reply(replyText);
 					console.log("Replied to Wordle results message");
 				}
-
 				break;
 			}
 		}
@@ -88,23 +84,18 @@ export async function checkWordleResults(wordleChannel) {
 		if (!foundTodaysWordle) {
 			console.log("No Wordle results found for today, checking yesterday...");
 			console.log("Looking for messages from:", yesterday);
-
 			for (const message of messages.values()) {
 				const messageDate = message.createdAt.toISOString().split("T")[0];
-
 				if (messageDate !== yesterday) {
 					continue;
 				}
 
 				const content = message.content;
-
 				if (content.includes("Here are yesterday's results:") && content.includes("X/6")) {
 					console.log("Found yesterday's Wordle results message!");
 
 					const failedUserIds = parseWordleMessage(content);
-
 					console.log(`Found ${failedUserIds.length} failed Wordle attempts from yesterday.`);
-
 					const mentionsFormatted = formatMentions(failedUserIds);
 					const messageTemplates = failedUserIds.length === 1 ? singleFailureMessages : multipleFailureMessages;
 					const replyText = messageTemplates[Math.floor(Math.random() * messageTemplates.length)].replace("%s", mentionsFormatted);
@@ -113,7 +104,6 @@ export async function checkWordleResults(wordleChannel) {
 						await message.reply(replyText);
 						console.log("Replied to yesterday's Wordle results message");
 					}
-
 					break;
 				}
 			}
