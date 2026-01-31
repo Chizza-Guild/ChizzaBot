@@ -98,6 +98,8 @@ export async function getDataFromPlayer(profileApiJson, uuid) {
 	let selectedPower = "none";
 	let selectedDungeonClass = "none";
 	let selectedArrowType = "none";
+
+    let highestLevel = 0;
 	let skillApiClosed = "no";
 	let inventoryApiClosed = "no";
 
@@ -184,8 +186,9 @@ export async function getDataFromPlayer(profileApiJson, uuid) {
 			selectedArrowType = data.item_data?.favorite_arrow || "none";
 		}
 
-		if (data.leveling?.experience > 20000) {
-			// If level is over 200, we check if any API's are closed
+		if (data.leveling?.experience > highestLevel) {
+			// We check if any API's are closed of the highest leveled profile.
+            highestLevel = data.leveling?.experience;
 			inventoryApiClosed = !data?.inventory;
 			skillApiClosed = !data?.player_data?.experience;
 		}
