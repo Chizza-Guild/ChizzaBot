@@ -1,16 +1,19 @@
 import { ProfileNetworthCalculator } from "skyhelper-networth";
 
-export function getDungeonLevel(experience) {
+export function getCatacombsBracket(experience) {
 	const catacombsXpTable = [50, 75, 110, 160, 230, 330, 470, 670, 950, 1340, 1890, 2665, 3760, 5260, 7380, 10300, 14400, 20000, 27600, 38000, 52500, 71500, 97000, 132000, 180000, 243000, 328000, 445000, 600000, 800000, 1065000, 1410000, 1900000, 2500000, 3300000, 4300000, 5600000, 7200000, 9200000, 12000000, 15000000, 19000000, 24000000, 30000000, 38000000, 48000000, 60000000, 75000000, 93000000, 116250000];
-	let totalExperience = 0;
-	for (let levelIndex = 0; levelIndex < catacombsXpTable.length; levelIndex++) {
-		totalExperience += catacombsXpTable[levelIndex];
-		if (experience < totalExperience) return levelIndex;
-	}
-	return 50;
-}
 
-export function getCatacombsBracket(level) {
+	let totalExperience = 0;
+	let level = 50;
+
+	for (let i = 0; i < catacombsXpTable.length; i++) {
+		totalExperience += catacombsXpTable[i];
+		if (experience < totalExperience) {
+			level = i;
+			break;
+		}
+	}
+
 	if (level >= 50) return "Cata 50+";
 	if (level >= 45) return "Cata 45+";
 	if (level >= 40) return "Cata 40+";
@@ -19,8 +22,8 @@ export function getCatacombsBracket(level) {
 	return null;
 }
 
-export function getSkyblockBracket(level) {
-	const low = Math.floor(level / 40) * 40;
+export function getSkyblockBracket(experience) {
+	const low = Math.floor(experience / 4000) * 40;
 	const high = low + 39;
 	if (high > 480) return `480+`;
 	return `${low} - ${high}`;

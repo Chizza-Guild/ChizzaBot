@@ -40,27 +40,26 @@ export async function getAllPlayerCredentials() {
 }
 
 export async function getMostRecentStats() {
-	const { data, error } = await supabase.from("player_stats").select("uuid, timestamp, skyblock_level, catacombs_level, farmingxp").order("timestamp", { ascending: false });
-	if (error) throw error;
+	try {
+		const { data, error } = await supabase.from("player_all_statistics").select("uuid, experiences, money").order("day", { ascending: false });
+		if (error) throw error;
 
-	const statsMap = new Map();
-	data.forEach(stat => {
-		if (!statsMap.has(stat.uuid.replace(/-/g, ""))) {
-			statsMap.set(stat.uuid.replace(/-/g, ""), {
-				skyblockLevel: stat.skyblock_level,
-				catacombsLevel: stat.catacombs_level,
-				farmingXp: stat.farmingxp,
-				timestamp: stat.timestamp,
-			});
-		}
-	});
+		const statsMap = new Map();
+		data.forEach(stat => {
+			if (!statsMap.has(stat.uuid.replace(/-/g, ""))) {
+				statsMap.set(stat.uuid.replace(/-/g, ""), {
+					skyblockLevel: stat.experiences[0],
+					catacombsLevel: stat.experiences[3],
+					networth: stat.money[0],
+				});
+			}
+		});
 
-	return statsMap;
-}
-
-export async function insertPlayerStats(statsArray) {
-	const { error } = await supabase.from("player_stats").insert(statsArray);
-	if (error) throw error;
+		return statsMap;
+	} catch (error) {
+        console.log(error);
+		return null;
+	}
 }
 
 export async function insertPlayerStatistics(newStatsToInsert) {
@@ -93,7 +92,7 @@ export async function updatePlayerIgn(mc_uuid, newIgn) {
 	if (error) throw error;
 }
 
-export async function updatePlayerStatus(dc_uuid, status) {
-	const { error } = await supabase.from("player_credentials").update({ status: status }).eq("discord_id", dc_uuid);
+export async function updatePlayerStatus(mc_uuid, status) {
+	const { error } = await supabase.from("player_credentials").update({ status: status }).eq("uuid", mc_uuid);
 	if (error) throw error;
 }

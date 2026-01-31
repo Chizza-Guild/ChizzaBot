@@ -2,8 +2,8 @@ require("dotenv").config();
 const fetch = require("node-fetch");
 const { Client, GatewayIntentBits } = require("discord.js");
 const { checkWordleResults, parseWordleMessage } = require("./wordle.js");
-const { loadEnvFromSupabase, loadBannedPlayers, addChangelogEntry, getAllPlayerCredentials, getMostRecentStats, insertPlayerStats, insertPlayerStatistics, upsertPlayerCredentials, updatePlayerIgn, updatePlayerStatus } = require("./supabase.js");
-const { getDataFromPlayer, getDungeonLevel, getCatacombsBracket, getSkyblockBracket, getNetworthBracket } = require("./datafetch.js");
+const { loadEnvFromSupabase, loadBannedPlayers, addChangelogEntry, getAllPlayerCredentials, getMostRecentStats, insertPlayerStatistics, upsertPlayerCredentials, updatePlayerIgn, updatePlayerStatus } = require("./supabase.js");
+const { getDataFromPlayer, getCatacombsBracket, getSkyblockBracket, getNetworthBracket } = require("./datafetch.js");
 
 const apiKey = process.env.HYPIXEL_API_KEY;
 const codeRunner = process.env.CODE_RUNNER_NAME;
@@ -177,10 +177,8 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 		console.error("Error fetching Discord members:", error);
 	}
 
-	const currentData = {};
-	const statsToInsert = [];
+	const currentCredentials = {};
 	const newStatsToInsert = [];
-	const currentTimestamp = new Date().toISOString();
 	let count = 0;
 
 	for (const member of members) {
@@ -193,33 +191,9 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 
 			if (bannedSet.has(member.uuid)) await logChange(`Banned player detected in guild: ${username} (${member.uuid})`);
 
-			let catacombsLevel = 0;
-			let skyblockLevel = 0;
-			let totalFarmingXp = 0;
-			let catacombsMaxXP = 0;
-
 			const profileApi = await fetch(`https://api.hypixel.net/v2/skyblock/profiles?key=${apiKey}&uuid=${member.uuid}`);
 			const profileApiJson = await profileApi.json();
-
-			for (const profile of profileApiJson.profiles) {
-				const data = profile.members?.[member.uuid];
-				if (!data) continue;
-
-				// Old database calculations
-				const catacombsXp = data.dungeons?.dungeon_types?.catacombs?.experience || 0;
-				if (catacombsXp > catacombsMaxXP) catacombsMaxXP = catacombsXp;
-
-				const skyblockXp = Math.floor((data.leveling?.experience || 0) / 100);
-				if (skyblockXp > skyblockLevel) skyblockLevel = skyblockXp;
-
-				const addedFarmingXp = Math.trunc(data.player_data?.experience?.SKILL_FARMING || 0);
-				totalFarmingXp += addedFarmingXp;
-			}
-
-			// New database calculations. When enough data is gathered, old database calculations will be deleted.
 			const allData = await getDataFromPlayer(profileApiJson, member.uuid);
-
-			catacombsLevel = getDungeonLevel(catacombsMaxXP);
 
 			let discordMember = null;
 			const existingCredentials = credentialsMap.get(member.uuid);
@@ -261,18 +235,10 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 				console.log(`Discord member not found for Minecraft user: ${username}`);
 			}
 
-			currentData[member.uuid] = {
+			currentCredentials[member.uuid] = {
 				username,
 				discordIdFromMember,
 			};
-
-			statsToInsert.push({
-				timestamp: currentTimestamp,
-				uuid: member.uuid,
-				skyblock_level: skyblockLevel,
-				catacombs_level: catacombsLevel,
-				farmingxp: totalFarmingXp,
-			});
 
 			newStatsToInsert.push({
 				uuid: member.uuid,
@@ -302,8 +268,8 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 		}
 
 		if (linkedUUID) {
-			const skyBracket = getSkyblockBracket(statsToInsert.find(item => item.uuid == linkedUUID)?.skyblock_level);
-			const cataBracket = getCatacombsBracket(statsToInsert.find(item => item.uuid == linkedUUID)?.catacombs_level);
+			const skyBracket = getSkyblockBracket(newStatsToInsert.find(item => item.uuid == linkedUUID)?.experiences[0]);
+			const cataBracket = getCatacombsBracket(newStatsToInsert.find(item => item.uuid == linkedUUID)?.experiences[3]);
 			const networthBracket = getNetworthBracket(newStatsToInsert.find(item => item.uuid == linkedUUID)?.money[0]);
 			await manageUserRoles(discordMember, skyBracket, cataBracket, networthBracket, true);
 		} else {
@@ -311,26 +277,21 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 		}
 	}
 
-	if (statsToInsert.length > 0) {
-		console.log(`Inserting ${statsToInsert.length} player stats to Supabase...`);
-		await insertPlayerStats(statsToInsert);
-	}
-
 	if (newStatsToInsert.length > 0) {
-		console.log(`Inserting ${newStatsToInsert.length} new player stats to Supabase...`);
+		console.log(`Inserting ${newStatsToInsert.length} player stats to Supabase...`);
 		await insertPlayerStatistics(newStatsToInsert);
 	}
 
 	if (previousStatsMap.size > 0) {
 		const previousUUIDs = new Set(previousStatsMap.keys());
-		const currentUUIDs = new Set(Object.keys(currentData));
+		const currentUUIDs = new Set(Object.keys(currentCredentials));
 
 		const joined = [];
 		const left = [];
 
 		for (const uuid of currentUUIDs) {
 			if (!previousUUIDs.has(uuid)) {
-				joined.push(currentData[uuid].username);
+				joined.push(currentCredentials[uuid].username);
 				updatePlayerStatus(uuid, true);
 			}
 		}
@@ -351,20 +312,27 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 		for (const uuid of currentUUIDs) {
 			if (previousUUIDs.has(uuid)) {
 				const previousStats = previousStatsMap.get(uuid);
-				const currentStats = currentData[uuid];
+				const currentStats = currentCredentials[uuid];
+
+				const previousSBBracket = getSkyblockBracket(previousStats.skyblockLevel);
+				const currentSBBracket = getSkyblockBracket(newStatsToInsert.find(item => item.uuid == uuid)?.experiences[0]);
+
+				if (previousSBBracket !== currentSBBracket) {
+					await logChange(`Congratulations ${currentStats.username} on reaching Skyblock level bracket ${currentSBBracket}! Enjoy your new role!`);
+				}
 
 				const previousCataBracket = getCatacombsBracket(previousStats.catacombsLevel);
-				const currentCataBracket = getCatacombsBracket(statsToInsert.find(item => item.uuid == uuid)?.catacombs_level);
+				const currentCataBracket = getCatacombsBracket(newStatsToInsert.find(item => item.uuid == uuid)?.experiences[3]);
 
 				if (previousCataBracket !== currentCataBracket) {
 					await logChange(`Congratulations ${currentStats.username} on reaching Catacombs level bracket ${currentCataBracket}! Enjoy your new role!`);
 				}
 
-				const previousSBBracket = getSkyblockBracket(previousStats.skyblockLevel);
-				const currentSBBracket = getSkyblockBracket(statsToInsert.find(item => item.uuid == uuid)?.skyblock_level);
+				const previousNWBracket = getSkyblockBracket(previousStats.networth);
+				const currentNWBracket = getSkyblockBracket(newStatsToInsert.find(item => item.uuid == uuid)?.money[0]);
 
-				if (previousSBBracket !== currentSBBracket) {
-					await logChange(`Congratulations ${currentStats.username} on reaching Skyblock level bracket ${currentSBBracket}! Enjoy your new role!`);
+				if (previousNWBracket !== currentNWBracket) {
+					await logChange(`Congratulations ${currentStats.username} on reaching Networth bracket ${currentNWBracket}! Enjoy your new role!`);
 				}
 			}
 		}
@@ -373,6 +341,6 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 	}
 
 	await logChange("Code running completed by " + codeRunner + ".");
-	process.exit(0);
 	if (client) client.destroy();
+	process.exit(0);
 })();
