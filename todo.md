@@ -1,0 +1,1 @@
+If a player has not in guild role then joins the server back, the bot doesn't detect the change
