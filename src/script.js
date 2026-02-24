@@ -328,8 +328,8 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 					await logChange(`Congratulations ${currentStats.username} on reaching Catacombs level bracket ${currentCataBracket}! Enjoy your new role!`);
 				}
 
-				const previousNWBracket = getSkyblockBracket(previousStats.networth);
-				const currentNWBracket = getSkyblockBracket(newStatsToInsert.find(item => item.uuid == uuid)?.money[0]);
+				const previousNWBracket = getNetworthBracket(previousStats.networth);
+				const currentNWBracket = getNetworthBracket(newStatsToInsert.find(item => item.uuid == uuid)?.money[0]);
 
 				if (previousNWBracket !== currentNWBracket) {
 					await logChange(`Congratulations ${currentStats.username} on reaching Networth bracket ${currentNWBracket}! Enjoy your new role!`);
