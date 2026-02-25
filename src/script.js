@@ -211,10 +211,10 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 					await updatePlayerIgn(member.uuid, username);
 				}
 
-				if (discordMember && discordMember.nickname !== username) {
+				if (discordMember && discordMember.nickname != username) {
 					try {
+						await logChange(`Updated Discord nickname for ${discordMember.nickname} to ${username}.`);
 						await discordMember.setNickname(username);
-						await logChange(`Updated Discord nickname for ${discordMember.user.username} to ${username}.`);
 					} catch (error) {
 						if (error.code == 50013) {
 							console.error("Bot lacks permissions to manage nicknames.");
