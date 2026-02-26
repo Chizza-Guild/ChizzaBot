@@ -213,7 +213,7 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 
 				if (discordMember && discordMember.nickname != username) {
 					try {
-						await logChange(`Updated Discord nickname for ${discordMember.nickname} to ${username}.`);
+						await logChange(`Updated Discord nickname for ${discordMember.nickname || discordMember.user.username} to ${username}.`);
 						await discordMember.setNickname(username);
 					} catch (error) {
 						if (error.code == 50013) {
