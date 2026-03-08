@@ -1,6 +1,7 @@
 import { ProfileNetworthCalculator } from "skyhelper-networth";
 
 export function getCatacombsBracket(experience) {
+	if (!experience) return null;
 	const catacombsXpTable = [50, 75, 110, 160, 230, 330, 470, 670, 950, 1340, 1890, 2665, 3760, 5260, 7380, 10300, 14400, 20000, 27600, 38000, 52500, 71500, 97000, 132000, 180000, 243000, 328000, 445000, 600000, 800000, 1065000, 1410000, 1900000, 2500000, 3300000, 4300000, 5600000, 7200000, 9200000, 12000000, 15000000, 19000000, 24000000, 30000000, 38000000, 48000000, 60000000, 75000000, 93000000, 116250000];
 
 	let totalExperience = 0;
@@ -23,6 +24,7 @@ export function getCatacombsBracket(experience) {
 }
 
 export function getSkyblockBracket(experience) {
+	if (!experience) return null;
 	const low = Math.floor(experience / 4000) * 40;
 	const high = low + 39;
 	if (high > 480) return `480+`;
@@ -30,6 +32,7 @@ export function getSkyblockBracket(experience) {
 }
 
 export function getNetworthBracket(networth) {
+	if (!networth) return null;
 	if (networth >= 100000000000) return "100B+";
 	if (networth >= 25000000000) return "25B+";
 	if (networth >= 10000000000) return "10B+";
@@ -99,7 +102,7 @@ export async function getDataFromPlayer(profileApiJson, uuid) {
 	let selectedDungeonClass = "none";
 	let selectedArrowType = "none";
 
-    let highestLevel = 0;
+	let highestLevel = 0;
 	let skillApiClosed = "no";
 	let inventoryApiClosed = "no";
 
@@ -188,7 +191,7 @@ export async function getDataFromPlayer(profileApiJson, uuid) {
 
 		if (data.leveling?.experience > highestLevel) {
 			// We check if any API's are closed of the highest leveled profile.
-            highestLevel = data.leveling?.experience;
+			highestLevel = data.leveling?.experience;
 			inventoryApiClosed = !data?.inventory;
 			skillApiClosed = !data?.player_data?.experience;
 		}

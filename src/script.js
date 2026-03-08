@@ -231,7 +231,12 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 			const discordIdFromMember = discordMember ? discordMember.user.id : null;
 			await upsertPlayerCredentials(member.uuid, username, discordIdFromMember, true);
 
-			if (username !== "undefined" && !discordMember) {
+			credentialsMap.set(member.uuid, {
+				ign: username,
+				discord_id: discordIdFromMember,
+			});
+
+			if (username != "undefined" && !discordMember) {
 				console.log(`Discord member not found for Minecraft user: ${username}`);
 			}
 
@@ -268,9 +273,16 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 		}
 
 		if (linkedUUID) {
-			const skyBracket = getSkyblockBracket(newStatsToInsert.find(item => item.uuid == linkedUUID)?.experiences[0]);
-			const cataBracket = getCatacombsBracket(newStatsToInsert.find(item => item.uuid == linkedUUID)?.experiences[3]);
-			const networthBracket = getNetworthBracket(newStatsToInsert.find(item => item.uuid == linkedUUID)?.money[0]);
+			const stats = newStatsToInsert.find(item => item.uuid == linkedUUID);
+
+			if (!stats) {
+				await manageUserRoles(discordMember, null, null, null, false);
+				continue;
+			}
+
+			const skyBracket = getSkyblockBracket(stats.experiences[0]);
+			const cataBracket = getCatacombsBracket(stats.experiences[3]);
+			const networthBracket = getNetworthBracket(stats.money[0]);
 			await manageUserRoles(discordMember, skyBracket, cataBracket, networthBracket, true);
 		} else {
 			await manageUserRoles(discordMember, null, null, null, false);
@@ -317,21 +329,21 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 				const previousSBBracket = getSkyblockBracket(previousStats.skyblockLevel);
 				const currentSBBracket = getSkyblockBracket(newStatsToInsert.find(item => item.uuid == uuid)?.experiences[0]);
 
-				if (previousSBBracket !== currentSBBracket) {
+				if (currentSBBracket && previousSBBracket != currentSBBracket) {
 					await logChange(`Congratulations ${currentStats.username} on reaching Skyblock level bracket ${currentSBBracket}! Enjoy your new role!`);
 				}
 
 				const previousCataBracket = getCatacombsBracket(previousStats.catacombsLevel);
 				const currentCataBracket = getCatacombsBracket(newStatsToInsert.find(item => item.uuid == uuid)?.experiences[3]);
 
-				if (previousCataBracket !== currentCataBracket) {
+				if (currentCataBracket && previousCataBracket != currentCataBracket) {
 					await logChange(`Congratulations ${currentStats.username} on reaching Catacombs level bracket ${currentCataBracket}! Enjoy your new role!`);
 				}
 
 				const previousNWBracket = getNetworthBracket(previousStats.networth);
 				const currentNWBracket = getNetworthBracket(newStatsToInsert.find(item => item.uuid == uuid)?.money[0]);
 
-				if (previousNWBracket !== currentNWBracket) {
+				if (currentNWBracket && previousNWBracket != currentNWBracket) {
 					await logChange(`Congratulations ${currentStats.username} on reaching Networth bracket ${currentNWBracket}! Enjoy your new role!`);
 				}
 			}

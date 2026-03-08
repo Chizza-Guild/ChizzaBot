@@ -44,12 +44,12 @@ export async function checkWordleResults(wordleChannel) {
 		let foundTodaysWordle = false;
 
 		function formatMentions(ids) {
-			if (ids.length === 1) return `<@${ids[0]}>`;
+			if (ids.length == 1) return `<@${ids[0]}>`;
 			const mentions = ids.map(id => `<@${id}>`);
 			return `${mentions.slice(0, -1).join(", ")} and ${mentions.slice(-1)}`;
 		}
 
-		const botSentMessageToday = messages.some(msg => msg.author.id === botId && msg.createdAt.toISOString().split("T")[0] === today);
+		const botSentMessageToday = messages.some(msg => msg.author.id == botId && msg.createdAt.toISOString().split("T")[0] == today);
 
 		if (botSentMessageToday) {
 			console.log("Bot has already sent a message in this channel today, skipping");
@@ -58,7 +58,7 @@ export async function checkWordleResults(wordleChannel) {
 
 		for (const message of messages.values()) {
 			const messageDate = message.createdAt.toISOString().split("T")[0];
-			if (messageDate !== today) {
+			if (messageDate != today) {
 				continue;
 			}
 
@@ -70,7 +70,7 @@ export async function checkWordleResults(wordleChannel) {
 				const failedUserIds = parseWordleMessage(content);
 				console.log(`Found ${failedUserIds.length} failed Wordle attempts.`);
 				const mentionsFormatted = formatMentions(failedUserIds);
-				const messageTemplates = failedUserIds.length === 1 ? singleFailureMessages : multipleFailureMessages;
+				const messageTemplates = failedUserIds.length == 1 ? singleFailureMessages : multipleFailureMessages;
 				const replyText = messageTemplates[Math.floor(Math.random() * messageTemplates.length)].replace("%s", mentionsFormatted);
 
 				if (wordleChannel) {
@@ -86,7 +86,7 @@ export async function checkWordleResults(wordleChannel) {
 			console.log("Looking for messages from:", yesterday);
 			for (const message of messages.values()) {
 				const messageDate = message.createdAt.toISOString().split("T")[0];
-				if (messageDate !== yesterday) {
+				if (messageDate != yesterday) {
 					continue;
 				}
 
@@ -97,7 +97,7 @@ export async function checkWordleResults(wordleChannel) {
 					const failedUserIds = parseWordleMessage(content);
 					console.log(`Found ${failedUserIds.length} failed Wordle attempts from yesterday.`);
 					const mentionsFormatted = formatMentions(failedUserIds);
-					const messageTemplates = failedUserIds.length === 1 ? singleFailureMessages : multipleFailureMessages;
+					const messageTemplates = failedUserIds.length == 1 ? singleFailureMessages : multipleFailureMessages;
 					const replyText = messageTemplates[Math.floor(Math.random() * messageTemplates.length)].replace("%s", mentionsFormatted);
 
 					if (wordleChannel) {
