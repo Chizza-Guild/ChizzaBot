@@ -10,7 +10,7 @@ const codeRunner = process.env.CODE_RUNNER_NAME;
 const SKYBLOCK_ROLES = ["480+", "440 - 479", "400 - 439", "360 - 399", "320 - 359", "280 - 319", "240 - 279", "200 - 239", "160 - 199", "120 - 159", "80 - 119", "40 - 79", "0 - 39"];
 const CATACOMBS_ROLES = ["Cata 30+", "Cata 35+", "Cata 40+", "Cata 45+", "Cata 50+"];
 const NETWORTH_ROLES = ["1B+", "5B+", "10B+", "25B+", "100B+"];
-const GUILD_ROLES = ["Chizzy", "Chizzy2"];
+let GUILD_ROLES = [];
 const client = new Client({
 	intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
 });
@@ -107,6 +107,7 @@ async function fetchGuildMembers(name, label) {
 	botTextSendChannelId = env.botTextSendChannelId;
 	wordleChannelId = env.wordleChannelId;
 	serverId = env.serverId;
+	GUILD_ROLES = [guildName, guildName2].filter(Boolean);
 
 	client.login(dcToken);
 	client.once("ready", async () => {
