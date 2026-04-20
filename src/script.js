@@ -10,6 +10,7 @@ const codeRunner = process.env.CODE_RUNNER_NAME;
 const SKYBLOCK_ROLES = ["480+", "440 - 479", "400 - 439", "360 - 399", "320 - 359", "280 - 319", "240 - 279", "200 - 239", "160 - 199", "120 - 159", "80 - 119", "40 - 79", "0 - 39"];
 const CATACOMBS_ROLES = ["Cata 30+", "Cata 35+", "Cata 40+", "Cata 45+", "Cata 50+"];
 const NETWORTH_ROLES = ["1B+", "5B+", "10B+", "25B+", "100B+"];
+const GUILD_ROLES = ["Chizzy", "Chizzy2"];
 const client = new Client({
 	intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
 });
@@ -19,6 +20,7 @@ let wordleChannel;
 let discordGuild;
 let dcToken;
 let guildName;
+let guildName2;
 let botTextSendChannelId;
 let wordleChannelId;
 let serverId;
@@ -39,7 +41,7 @@ function warnWithBigText(message) {
 	process.exit(1);
 }
 
-async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket, networthBracket, isInGuild) {
+async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket, networthBracket, guildRole) {
 	if (!discordMember) return;
 
 	const allRoles = discordGuild.roles.cache;
@@ -48,19 +50,21 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 	try {
 		const desiredRoles = new Set();
 
-		if (!isInGuild) {
+		if (!guildRole) {
 			if (notInGuildRole) desiredRoles.add(notInGuildRole.id);
 		} else {
 			const sbRole = allRoles.find(role => role.name == skyblockBracket);
 			const cataRole = allRoles.find(role => role.name == catacombsBracket);
 			const nwRole = allRoles.find(role => role.name == networthBracket);
+			const gRole = allRoles.find(role => role.name == guildRole);
 
 			if (sbRole) desiredRoles.add(sbRole.id);
 			if (cataRole) desiredRoles.add(cataRole.id);
 			if (nwRole) desiredRoles.add(nwRole.id);
+			if (gRole) desiredRoles.add(gRole.id);
 		}
 
-		const managedRoles = [...Object.values(SKYBLOCK_ROLES), ...Object.values(CATACOMBS_ROLES), ...Object.values(NETWORTH_ROLES), "Not in guild"];
+		const managedRoles = [...Object.values(SKYBLOCK_ROLES), ...Object.values(CATACOMBS_ROLES), ...Object.values(NETWORTH_ROLES), ...GUILD_ROLES, "Not in guild"];
 
 		for (const roleName of managedRoles) {
 			const role = allRoles.find(role => role.name == roleName);
@@ -77,6 +81,21 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 	}
 }
 
+async function fetchGuildMembers(name, label) {
+	const findRes = await fetch(`https://api.hypixel.net/findGuild?key=${apiKey}&byName=${name}`);
+	const findResText = await findRes.text();
+	if (findRes.status == 403 || findResText.includes("Forbidden")) warnWithBigText("Invalid API Key");
+
+	const { success, guild: guildId } = JSON.parse(findResText);
+	if (!success || !guildId) warnWithBigText(`Hypixel guild not found: ${label}`);
+
+	const guildRes = await fetch(`https://api.hypixel.net/guild?key=${apiKey}&id=${guildId}`);
+	const guildJson = await guildRes.json();
+	if (!guildJson.success || !guildJson.guild) warnWithBigText(`Failed to fetch guild data: ${label}`);
+
+	return guildJson.guild.members;
+}
+
 (async () => {
 	if (!codeRunner) return console.log("No code runner found. Please add it in the .env file.");
 	console.log("Fetching .env from supabase...");
@@ -84,6 +103,7 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 
 	dcToken = env.dcToken;
 	guildName = env.guildName;
+	guildName2 = env.guildName2;
 	botTextSendChannelId = env.botTextSendChannelId;
 	wordleChannelId = env.wordleChannelId;
 	serverId = env.serverId;
@@ -143,19 +163,13 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 	const previousStatsMap = await getMostRecentStats();
 	console.log(`Loaded stats for ${previousStatsMap.size} players from Supabase`);
 
-	const findRes = await fetch(`https://api.hypixel.net/findGuild?key=${apiKey}&byName=${guildName}`);
-	const findResText = await findRes.text();
-	if (findRes.status == 403 || findResText.includes("Forbidden")) warnWithBigText("Invalid API Key");
-
-	const { success, guild: guildId } = JSON.parse(findResText);
-	if (!success || !guildId) warnWithBigText("Hypixel guild not found.");
 	if (!discordGuild) warnWithBigText("Discord server information missing.");
 
-	const guildRes = await fetch(`https://api.hypixel.net/guild?key=${apiKey}&id=${guildId}`);
-	const guildJson = await guildRes.json();
-	if (!guildJson.success || !guildJson.guild) warnWithBigText("Failed to fetch guild data.");
+	const [guild1Members, guild2Members] = await Promise.all([fetchGuildMembers(guildName, "Guild 1"), guildName2 ? fetchGuildMembers(guildName2, "Guild 2") : Promise.resolve([])]);
 
-	const members = guildJson.guild.members;
+	const guild2UUIDs = new Set(guild2Members.map(m => m.uuid));
+	const allMembers = [...guild1Members.map(m => ({ ...m, guildRole: "Chizzy" })), ...guild2Members.map(m => ({ ...m, guildRole: "Chizzy2" }))];
+
 	let dcUsersByNickname = new Map();
 	let dcUsersById = new Map();
 
@@ -181,10 +195,10 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 	const newStatsToInsert = [];
 	let count = 0;
 
-	for (const member of members) {
+	for (const member of allMembers) {
 		try {
 			count++;
-			console.log(`Processing ${count}/${members.length}: ${member.uuid}`);
+			console.log(`Processing ${count}/${allMembers.length}: ${member.uuid}`);
 
 			const response = await fetch(`https://sessionserver.mojang.com/session/minecraft/profile/${member.uuid}`);
 			let username = response.ok ? (await response.json()).name : "undefined";
@@ -243,19 +257,22 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 			currentCredentials[member.uuid] = {
 				username,
 				discordIdFromMember,
+				guildRole: member.guildRole,
 			};
 
-			newStatsToInsert.push({
-				uuid: member.uuid,
-				experiences: allData.experiences,
-				money: allData.money,
-				mining: allData.mining,
-				completions: allData.completions,
-				dungeon: allData.dungeon,
-				slayers: allData.slayers,
-				misc: allData.misc,
-				selections: allData.selections,
-			});
+			if (!newStatsToInsert.find(s => s.uuid == member.uuid)) {
+				newStatsToInsert.push({
+					uuid: member.uuid,
+					experiences: allData.experiences,
+					money: allData.money,
+					mining: allData.mining,
+					completions: allData.completions,
+					dungeon: allData.dungeon,
+					slayers: allData.slayers,
+					misc: allData.misc,
+					selections: allData.selections,
+				});
+			}
 		} catch (error) {
 			console.log(error);
 		}
@@ -272,20 +289,21 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 			}
 		}
 
-		if (linkedUUID) {
+		if (linkedUUID && currentCredentials[linkedUUID]) {
 			const stats = newStatsToInsert.find(item => item.uuid == linkedUUID);
 
 			if (!stats) {
-				await manageUserRoles(discordMember, null, null, null, false);
+				await manageUserRoles(discordMember, null, null, null, null);
 				continue;
 			}
 
 			const skyBracket = getSkyblockBracket(stats.experiences[0]);
 			const cataBracket = getCatacombsBracket(stats.experiences[3]);
 			const networthBracket = getNetworthBracket(stats.money[0]);
-			await manageUserRoles(discordMember, skyBracket, cataBracket, networthBracket, true);
+			const guildRole = currentCredentials[linkedUUID].guildRole;
+			await manageUserRoles(discordMember, skyBracket, cataBracket, networthBracket, guildRole);
 		} else {
-			await manageUserRoles(discordMember, null, null, null, false);
+			await manageUserRoles(discordMember, null, null, null, null);
 		}
 	}
 
@@ -304,7 +322,7 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 		for (const uuid of currentUUIDs) {
 			if (!previousUUIDs.has(uuid)) {
 				joined.push(currentCredentials[uuid].username);
-				updatePlayerStatus(uuid, true);
+				updatePlayerStatus(uuid, currentCredentials[uuid].guildRole);
 			}
 		}
 
@@ -313,8 +331,14 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 				const credentials = credentialsMap.get(uuid);
 				if (credentials) {
 					left.push(credentials.ign);
-					updatePlayerStatus(uuid, false);
+					updatePlayerStatus(uuid, "Not in guild");
 				}
+			}
+		}
+
+		for (const uuid of currentUUIDs) {
+			if (previousUUIDs.has(uuid)) {
+				updatePlayerStatus(uuid, currentCredentials[uuid].guildRole);
 			}
 		}
 

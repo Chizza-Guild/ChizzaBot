@@ -9,6 +9,7 @@ export async function loadEnvFromSupabase() {
 	return {
 		dcToken: data.dc_token,
 		guildName: data.guild_name,
+        guildName2: data.guild_name2,
 		botTextSendChannelId: data.channel_id,
 		wordleChannelId: data.wordle_channel,
 		serverId: data.server_id,
