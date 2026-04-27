@@ -19,8 +19,7 @@ let channel;
 let wordleChannel;
 let discordGuild;
 let dcToken;
-let guildName;
-let guildName2;
+let guildNames;
 let botTextSendChannelId;
 let wordleChannelId;
 let serverId;
@@ -102,12 +101,11 @@ async function fetchGuildMembers(name, label) {
 	const env = await loadEnvFromSupabase();
 
 	dcToken = env.dcToken;
-	guildName = env.guildName;
-	guildName2 = env.guildName2;
+	guildNames = env.guildNames;
 	botTextSendChannelId = env.botTextSendChannelId;
 	wordleChannelId = env.wordleChannelId;
 	serverId = env.serverId;
-	GUILD_ROLES = [guildName, guildName2].filter(Boolean);
+	GUILD_ROLES = guildNames;
 
 	client.login(dcToken);
 	client.once("ready", async () => {
@@ -166,10 +164,8 @@ async function fetchGuildMembers(name, label) {
 
 	if (!discordGuild) warnWithBigText("Discord server information missing.");
 
-	const [guild1Members, guild2Members] = await Promise.all([fetchGuildMembers(guildName, "Guild 1"), guildName2 ? fetchGuildMembers(guildName2, "Guild 2") : Promise.resolve([])]);
-
-	const guild2UUIDs = new Set(guild2Members.map(m => m.uuid));
-	const allMembers = [...guild1Members.map(m => ({ ...m, guildRole: "Chizzy" })), ...guild2Members.map(m => ({ ...m, guildRole: "Chizzy2" }))];
+	const guildMembersResults = await Promise.all(guildNames.map((name, i) => fetchGuildMembers(name, `Guild ${i + 1}`)));
+	const allMembers = guildMembersResults.flatMap((members, i) => members.map(m => ({ ...m, guildRole: guildNames[i] })));
 
 	let dcUsersByNickname = new Map();
 	let dcUsersById = new Map();
@@ -244,7 +240,7 @@ async function fetchGuildMembers(name, label) {
 			}
 
 			const discordIdFromMember = discordMember ? discordMember.user.id : null;
-			await upsertPlayerCredentials(member.uuid, username, discordIdFromMember, true);
+			await upsertPlayerCredentials(member.uuid, username, discordIdFromMember, member.guildRole);
 
 			credentialsMap.set(member.uuid, {
 				ign: username,

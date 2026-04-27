@@ -6,10 +6,21 @@ export async function loadEnvFromSupabase() {
 	const { data, error } = await supabase.from("misc_settings").select("*").single();
 	if (error) throw error;
 
+	const guildNames = [];
+	let i = 1;
+	while (true) {
+		const key = i == 1 ? "guild_name" : `guild_name${i}`;
+		if (data[key]) {
+			guildNames.push(data[key]);
+			i++;
+		} else {
+			break;
+		}
+	}
+
 	return {
 		dcToken: data.dc_token,
-		guildName: data.guild_name,
-        guildName2: data.guild_name2,
+		guildNames,
 		botTextSendChannelId: data.channel_id,
 		wordleChannelId: data.wordle_channel,
 		serverId: data.server_id,
@@ -29,7 +40,7 @@ export async function addChangelogEntry(text, timestamp) {
 }
 
 export async function getAllPlayerCredentials() {
-	const { data, error } = await supabase.from("player_credentials").select("*").eq("status", "true");
+	const { data, error } = await supabase.from("player_credentials").select("*").neq("status", "Not in guild");
 	if (error) throw error;
 
 	const credentialsMap = new Map();
@@ -58,8 +69,8 @@ export async function getMostRecentStats() {
 
 		return statsMap;
 	} catch (error) {
-        console.log(error);
-		return null;
+		console.log(error);
+		return new Map();
 	}
 }
 
