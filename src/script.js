@@ -80,6 +80,20 @@ async function manageUserRoles(discordMember, skyblockBracket, catacombsBracket,
 	}
 }
 
+async function fetchWithRetry(url, retries = 5) {
+	for (let i = 0; i < retries; i++) {
+		try {
+			const res = await fetch(url);
+			if (res.ok) return res;
+			console.warn(`Request failed (attempt ${i + 1}/${retries}): ${url} — status ${res.status}`);
+		} catch (err) {
+			console.warn(`Request error (attempt ${i + 1}/${retries}): ${url} — ${err.message}`);
+		}
+		if (i < retries - 1) await new Promise(resolve => setTimeout(resolve, 1000));
+	}
+	return null;
+}
+
 async function fetchGuildMembers(name, label) {
 	const findRes = await fetch(`https://api.hypixel.net/findGuild?key=${apiKey}&byName=${name}`);
 	const findResText = await findRes.text();
@@ -143,6 +157,8 @@ async function fetchGuildMembers(name, label) {
 
 	await new Promise(resolve => setTimeout(resolve, 2000));
 
+	// return channel.send("what the hell");
+
 	await checkWordleResults(wordleChannel);
 
 	if (process.argv.slice(2).includes("wordle")) {
@@ -197,12 +213,18 @@ async function fetchGuildMembers(name, label) {
 			count++;
 			console.log(`Processing ${count}/${allMembers.length}: ${member.uuid}`);
 
-			const response = await fetch(`https://sessionserver.mojang.com/session/minecraft/profile/${member.uuid}`);
-			let username = response.ok ? (await response.json()).name : "undefined";
+			const [mojangRes, profileApi] = await Promise.all([fetchWithRetry(`https://sessionserver.mojang.com/session/minecraft/profile/${member.uuid}`), fetchWithRetry(`https://api.hypixel.net/v2/skyblock/profiles?key=${apiKey}&uuid=${member.uuid}`)]);
+
+			let username = mojangRes ? (await mojangRes.json()).name : "undefined";
 
 			if (bannedSet.has(member.uuid)) await logChange(`Banned player detected in guild: ${username} (${member.uuid})`);
 
-			const profileApi = await fetch(`https://api.hypixel.net/v2/skyblock/profiles?key=${apiKey}&uuid=${member.uuid}`);
+			if (!profileApi) {
+				console.warn(`Skipping stats for ${username} — Hypixel API failed after retries.`);
+				await new Promise(resolve => setTimeout(resolve, 1000));
+				continue;
+			}
+
 			const profileApiJson = await profileApi.json();
 			const allData = await getDataFromPlayer(profileApiJson, member.uuid);
 
@@ -270,6 +292,8 @@ async function fetchGuildMembers(name, label) {
 					selections: allData.selections,
 				});
 			}
+
+			await new Promise(resolve => setTimeout(resolve, 1000));
 		} catch (error) {
 			console.log(error);
 		}
