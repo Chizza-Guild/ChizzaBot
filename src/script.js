@@ -206,6 +206,7 @@ async function fetchGuildMembers(name, label) {
 
 	const currentCredentials = {};
 	const newStatsToInsert = [];
+	const claimedDiscordIds = new Set();
 	let count = 0;
 
 	for (const member of allMembers) {
@@ -232,8 +233,7 @@ async function fetchGuildMembers(name, label) {
 			const existingCredentials = credentialsMap.get(member.uuid);
 
 			if (existingCredentials) {
-				// User data already in supabase db
-				const discordId = existingCredentials.discord_id ?? dcUsersByNickname.get(username)?.user?.id ?? null;
+				const discordId = existingCredentials.discord_id ?? null;
 
 				if (discordId && discordId != "undefined") {
 					discordMember = dcUsersById.get(discordId) ?? null;
@@ -243,22 +243,32 @@ async function fetchGuildMembers(name, label) {
 					await logChange(`${existingCredentials.ign} changed their Minecraft username to ${username}.`);
 					await updatePlayerIgn(member.uuid, username);
 				}
+			} else {
+				discordMember = dcUsersByNickname.get(username) ?? null;
+			}
 
-				if (discordMember && discordMember.nickname != username) {
-					try {
-						await logChange(`Updated Discord nickname for ${discordMember.nickname || discordMember.user.username} to ${username}.`);
-						await discordMember.setNickname(username);
-					} catch (error) {
-						if (error.code == 50013) {
-							console.error("Bot lacks permissions to manage nicknames.");
-						} else {
-							console.error(`Error updating nickname for ${discordMember.user.username}:`, error);
+			if (discordMember) {
+				if (claimedDiscordIds.has(discordMember.user.id)) {
+					discordMember = null;
+				} else {
+					claimedDiscordIds.add(discordMember.user.id);
+
+					if (discordMember.nickname != username) {
+						try {
+							const oldDisplayName = discordMember.displayName;
+							await logChange(`Updated Discord nickname for ${discordMember.nickname || discordMember.user.username} to ${username}.`);
+							await discordMember.setNickname(username);
+							dcUsersByNickname.delete(oldDisplayName);
+							dcUsersByNickname.set(username, discordMember);
+						} catch (error) {
+							if (error.code == 50013) {
+								console.error("Bot lacks permissions to manage nicknames.");
+							} else {
+								console.error(`Error updating nickname for ${discordMember.user.username}:`, error);
+							}
 						}
 					}
 				}
-			} else {
-				// User data not in supabase db, we have to insert a row
-				discordMember = dcUsersByNickname.get(username) ?? null;
 			}
 
 			const discordIdFromMember = discordMember ? discordMember.user.id : null;
