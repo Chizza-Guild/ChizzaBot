@@ -207,10 +207,13 @@ async function fetchGuildMembers(name, label) {
 	const currentCredentials = {};
 	const newStatsToInsert = [];
 	const claimedDiscordIds = new Set();
+	const skippedMembers = new Set();
+	const newDuplicateDiscordIdLog = [];
 	let count = 0;
 
 	for (const member of allMembers) {
 		try {
+			member.uuid = member.uuid.replace(/-/g, "");
 			count++;
 			console.log(`Processing ${count}/${allMembers.length}: ${member.uuid}`);
 
@@ -220,14 +223,16 @@ async function fetchGuildMembers(name, label) {
 
 			if (bannedSet.has(member.uuid)) await logChange(`Banned player detected in guild: ${username} (${member.uuid})`);
 
+			let allData = null;
+			let fetchFailed = false;
+
 			if (!profileApi) {
 				console.warn(`Skipping stats for ${username} — Hypixel API failed after retries.`);
-				await new Promise(resolve => setTimeout(resolve, 1000));
-				continue;
+				fetchFailed = true;
+			} else {
+				const profileApiJson = await profileApi.json();
+				allData = await getDataFromPlayer(profileApiJson, member.uuid);
 			}
-
-			const profileApiJson = await profileApi.json();
-			const allData = await getDataFromPlayer(profileApiJson, member.uuid);
 
 			let discordMember = null;
 			const existingCredentials = credentialsMap.get(member.uuid);
@@ -243,7 +248,9 @@ async function fetchGuildMembers(name, label) {
 					await logChange(`${existingCredentials.ign} changed their Minecraft username to ${username}.`);
 					await updatePlayerIgn(member.uuid, username);
 				}
-			} else {
+			}
+
+			if (!discordMember) {
 				discordMember = dcUsersByNickname.get(username) ?? null;
 			}
 
@@ -272,6 +279,15 @@ async function fetchGuildMembers(name, label) {
 			}
 
 			const discordIdFromMember = discordMember ? discordMember.user.id : null;
+
+			if (discordIdFromMember) {
+				for (const [otherUuid, otherCredentials] of credentialsMap.entries()) {
+					if (otherUuid != member.uuid && otherCredentials.discord_id == discordIdFromMember) {
+						newDuplicateDiscordIdLog.push({ discordId: discordIdFromMember, uuids: [otherUuid, member.uuid], igns: [otherCredentials.ign, username] });
+					}
+				}
+			}
+
 			await upsertPlayerCredentials(member.uuid, username, discordIdFromMember, member.guildRole);
 
 			credentialsMap.set(member.uuid, {
@@ -289,7 +305,9 @@ async function fetchGuildMembers(name, label) {
 				guildRole: member.guildRole,
 			};
 
-			if (!newStatsToInsert.find(s => s.uuid == member.uuid)) {
+			if (fetchFailed) {
+				skippedMembers.add(member.uuid);
+			} else if (!newStatsToInsert.find(s => s.uuid == member.uuid)) {
 				newStatsToInsert.push({
 					uuid: member.uuid,
 					experiences: allData.experiences,
@@ -311,31 +329,66 @@ async function fetchGuildMembers(name, label) {
 
 	console.log("Managing Discord roles for all members...");
 
-	for (const [discordId, discordMember] of dcUsersById.entries()) {
-		let linkedUUID = null;
-		for (const [uuid, credentials] of credentialsMap.entries()) {
-			if (credentials.discord_id == discordId) {
-				linkedUUID = uuid;
-				break;
-			}
+	const discordIdToUUID = new Map();
+	const duplicateDiscordIdLog = [];
+
+	for (const [uuid, credentials] of credentialsMap.entries()) {
+		const discordId = credentials.discord_id;
+		if (!discordId || discordId == "undefined") continue;
+
+		if (discordIdToUUID.has(discordId)) {
+			duplicateDiscordIdLog.push({ discordId, uuids: [discordIdToUUID.get(discordId), uuid] });
+		} else {
+			discordIdToUUID.set(discordId, uuid);
 		}
+	}
+
+	for (const [discordId, discordMember] of dcUsersById.entries()) {
+		const linkedUUID = discordIdToUUID.get(discordId) ?? null;
 
 		if (linkedUUID && currentCredentials[linkedUUID]) {
 			const stats = newStatsToInsert.find(item => item.uuid == linkedUUID);
+			const guildRole = currentCredentials[linkedUUID].guildRole;
 
 			if (!stats) {
-				await manageUserRoles(discordMember, null, null, null, null);
+				if (skippedMembers.has(linkedUUID) && previousStatsMap.has(linkedUUID)) {
+					const previousStats = previousStatsMap.get(linkedUUID);
+					const skyBracket = getSkyblockBracket(previousStats.skyblockLevel);
+					const cataBracket = getCatacombsBracket(previousStats.catacombsLevel);
+					const networthBracket = getNetworthBracket(previousStats.networth);
+					await manageUserRoles(discordMember, skyBracket, cataBracket, networthBracket, guildRole);
+				}
 				continue;
 			}
 
 			const skyBracket = getSkyblockBracket(stats.experiences[0]);
 			const cataBracket = getCatacombsBracket(stats.experiences[3]);
 			const networthBracket = getNetworthBracket(stats.money[0]);
-			const guildRole = currentCredentials[linkedUUID].guildRole;
 			await manageUserRoles(discordMember, skyBracket, cataBracket, networthBracket, guildRole);
 		} else {
 			await manageUserRoles(discordMember, null, null, null, null);
 		}
+	}
+
+	if (duplicateDiscordIdLog.length > 0) {
+		console.log("##############################################");
+		console.log("DUPLICATE DISCORD_ID ENTRIES FOUND IN credentialsMap:");
+		duplicateDiscordIdLog.forEach(entry => {
+			console.log(`  discord_id ${entry.discordId} is linked to multiple uuids: ${entry.uuids.join(", ")}`);
+		});
+		console.log("Only the first uuid found for each discord_id was used for role assignment this run.");
+		console.log("Please check the player_credentials table and clear the stale discord_id manually.");
+		console.log("##############################################");
+	}
+
+	if (newDuplicateDiscordIdLog.length > 0) {
+		console.log("##############################################");
+		console.log("NEW DUPLICATE DISCORD_ID ASSIGNMENTS DETECTED THIS RUN:");
+		newDuplicateDiscordIdLog.forEach(entry => {
+			console.log(`  discord_id ${entry.discordId}: uuid ${entry.uuids[0]} (ign: ${entry.igns[0]}) already had it, uuid ${entry.uuids[1]} (ign: ${entry.igns[1]}) was just assigned the same discord_id.`);
+		});
+		console.log("Please check the player_credentials table and clear the stale discord_id manually.");
+		console.log("##############################################");
 	}
 
 	if (newStatsToInsert.length > 0) {

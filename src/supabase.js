@@ -45,7 +45,7 @@ export async function getAllPlayerCredentials() {
 
 	const credentialsMap = new Map();
 	data.forEach(player => {
-		credentialsMap.set(player.uuid.replace(/-/g, ""), player);
+		credentialsMap.set(player.uuid.replace(/-/g, ""), { ...player, uuid: player.uuid.replace(/-/g, "") });
 	});
 
 	return credentialsMap;
@@ -58,8 +58,9 @@ export async function getMostRecentStats() {
 
 		const statsMap = new Map();
 		data.forEach(stat => {
-			if (!statsMap.has(stat.uuid.replace(/-/g, ""))) {
-				statsMap.set(stat.uuid.replace(/-/g, ""), {
+			const normalizedUuid = stat.uuid.replace(/-/g, "");
+			if (!statsMap.has(normalizedUuid)) {
+				statsMap.set(normalizedUuid, {
 					skyblockLevel: stat.experiences[0],
 					catacombsLevel: stat.experiences[3],
 					networth: stat.money[0],
@@ -86,7 +87,7 @@ export async function insertPlayerStatistics(newStatsToInsert) {
 export async function upsertPlayerCredentials(uuid, ign, discordId, status) {
 	const { error } = await supabase.from("player_credentials").upsert(
 		{
-			uuid,
+			uuid: uuid.replace(/-/g, ""),
 			ign,
 			discord_id: discordId,
 			status: status,
@@ -100,11 +101,11 @@ export async function upsertPlayerCredentials(uuid, ign, discordId, status) {
 }
 
 export async function updatePlayerIgn(mc_uuid, newIgn) {
-	const { error } = await supabase.from("player_credentials").update({ ign: newIgn }).eq("uuid", mc_uuid);
+	const { error } = await supabase.from("player_credentials").update({ ign: newIgn }).eq("uuid", mc_uuid.replace(/-/g, ""));
 	if (error) throw error;
 }
 
 export async function updatePlayerStatus(mc_uuid, status) {
-	const { error } = await supabase.from("player_credentials").update({ status: status }).eq("uuid", mc_uuid);
+	const { error } = await supabase.from("player_credentials").update({ status: status }).eq("uuid", mc_uuid.replace(/-/g, ""));
 	if (error) throw error;
 }
