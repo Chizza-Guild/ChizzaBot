@@ -188,6 +188,8 @@ async function fetchApiKeyFromChannel(channelId) {
 			apiKey = null;
 		}
 	}
+	
+    // return channel.send("funny chat message here...");
 
 	if (!apiKey && apiKeyChannelId) {
 		const apiKeyChannel = await client.channels.fetch(apiKeyChannelId);
@@ -210,8 +212,6 @@ async function fetchApiKeyFromChannel(channelId) {
 	}
 
 	if (!apiKey) warnWithBigText("No API key available.");
-
-	// return channel.send("what the hell");
 
 	await checkWordleResults(wordleChannel);
 

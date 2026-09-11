@@ -1,0 +1,50 @@
+name: ChizzaBot Retry
+
+on:
+  schedule:
+    - cron: '0 19 * * *'
+  workflow_dispatch:
+
+jobs:
+  check-and-run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if primary succeeded today
+        id: check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const now = new Date();
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+            const runs = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'chizzabot.yml',
+              created: `>=${todayStart}`,
+              per_page: 5,
+            });
+            const success = runs.data.workflow_runs.some(r => r.conclusion === 'success');
+            if (success) {
+              core.info('Primary run succeeded today, skipping retry');
+            } else {
+              core.info('No successful primary run today, will retry');
+            }
+            core.setOutput('skip', success);
+
+      - if: steps.check.outputs.skip != 'true'
+        uses: actions/checkout@v4
+
+      - if: steps.check.outputs.skip != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - if: steps.check.outputs.skip != 'true'
+        run: npm install
+
+      - if: steps.check.outputs.skip != 'true'
+        run: node src/script.js
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CODE_RUNNER_NAME: ${{ secrets.CODE_RUNNER_NAME }}
