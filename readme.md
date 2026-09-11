@@ -18,6 +18,6 @@ CODE_RUNNER_NAME = xxxxx --> Input any name
 
 Finally, run by typing: node src/script.js
 
-### For duplicating:
+## For duplicating:
 
 Database Schema: Coming Soon

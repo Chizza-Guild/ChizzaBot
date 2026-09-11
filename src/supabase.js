@@ -24,6 +24,7 @@ export async function loadEnvFromSupabase() {
 		botTextSendChannelId: data.channel_id,
 		wordleChannelId: data.wordle_channel,
 		serverId: data.server_id,
+		apiKeyId: data.api_key_channel_id,
 	};
 }
 

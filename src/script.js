@@ -5,7 +5,7 @@ const { checkWordleResults, parseWordleMessage } = require("./wordle.js");
 const { loadEnvFromSupabase, loadBannedPlayers, addChangelogEntry, getAllPlayerCredentials, getMostRecentStats, insertPlayerStatistics, upsertPlayerCredentials, updatePlayerIgn, updatePlayerStatus } = require("./supabase.js");
 const { getDataFromPlayer, getCatacombsBracket, getSkyblockBracket, getNetworthBracket } = require("./datafetch.js");
 
-const apiKey = process.env.HYPIXEL_API_KEY;
+let apiKey = process.env.HYPIXEL_API_KEY;
 const codeRunner = process.env.CODE_RUNNER_NAME;
 const SKYBLOCK_ROLES = ["480+", "440 - 479", "400 - 439", "360 - 399", "320 - 359", "280 - 319", "240 - 279", "200 - 239", "160 - 199", "120 - 159", "80 - 119", "40 - 79", "0 - 39"];
 const CATACOMBS_ROLES = ["Cata 30+", "Cata 35+", "Cata 40+", "Cata 45+", "Cata 50+"];
@@ -23,6 +23,7 @@ let guildNames;
 let botTextSendChannelId;
 let wordleChannelId;
 let serverId;
+let apiKeyChannelId;
 
 async function logChange(message) {
 	console.log(message);
@@ -109,6 +110,28 @@ async function fetchGuildMembers(name, label) {
 	return guildJson.guild.members;
 }
 
+async function testApiKey(key) {
+	try {
+		const res = await fetch(`https://api.hypixel.net/findGuild?key=${key}&byName=test`);
+		const text = await res.text();
+		return res.status != 403 && !text.includes("Forbidden");
+	} catch {
+		return false;
+	}
+}
+
+async function fetchApiKeyFromChannel(channelId) {
+	const apiKeyChannel = await client.channels.fetch(channelId);
+	const messages = await apiKeyChannel.messages.fetch({ limit: 50 });
+	const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+
+	for (const [, msg] of messages) {
+		const match = msg.content.match(uuidRegex);
+		if (match) return match[0];
+	}
+	return null;
+}
+
 (async () => {
 	if (!codeRunner) return console.log("No code runner found. Please add it in the .env file.");
 	console.log("Fetching .env from supabase...");
@@ -119,6 +142,7 @@ async function fetchGuildMembers(name, label) {
 	botTextSendChannelId = env.botTextSendChannelId;
 	wordleChannelId = env.wordleChannelId;
 	serverId = env.serverId;
+	apiKeyChannelId = env.apiKeyId;
 	GUILD_ROLES = guildNames;
 
 	client.login(dcToken);
@@ -156,6 +180,36 @@ async function fetchGuildMembers(name, label) {
 	});
 
 	await new Promise(resolve => setTimeout(resolve, 2000));
+
+	if (apiKey) {
+		const valid = await testApiKey(apiKey);
+		if (!valid) {
+			console.log("Env API key invalid, trying channel...");
+			apiKey = null;
+		}
+	}
+
+	if (!apiKey && apiKeyChannelId) {
+		const apiKeyChannel = await client.channels.fetch(apiKeyChannelId);
+		const channelKey = await fetchApiKeyFromChannel(apiKeyChannelId);
+		if (channelKey) {
+			const valid = await testApiKey(channelKey);
+			if (valid) {
+				apiKey = channelKey;
+			} else {
+				console.log("Channel API key invalid.");
+				await apiKeyChannel.send("This key no work???? Give me working key you lazy bum");
+				if (client) client.destroy();
+				process.exit(1);
+			}
+		} else {
+			await apiKeyChannel.send("This key no work???? Give me working key you lazy bum");
+			if (client) client.destroy();
+			process.exit(1);
+		}
+	}
+
+	if (!apiKey) warnWithBigText("No API key available.");
 
 	// return channel.send("what the hell");
 
