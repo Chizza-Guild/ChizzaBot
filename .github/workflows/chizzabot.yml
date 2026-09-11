@@ -15,7 +15,7 @@ jobs:
         with:
           node-version: '20'
 
-      - run: npm install
+      - run: npm update
 
       - run: node src/script.js
         env:

@@ -41,9 +41,10 @@ export function getNetworthBracket(networth) {
 	return null;
 }
 
-export async function getDataFromPlayer(profileApiJson, uuid) {
+export async function getDataFromPlayer(profileApiJson, uuid, apiKey) {
 	const totals = {
 		networth: 0,
+		non_cosmetic_networth: 0,
 		kills: 0,
 		deaths: 0,
 		fishing_xp: 0,
@@ -112,10 +113,27 @@ export async function getDataFromPlayer(profileApiJson, uuid) {
 		const data = profile.members?.[uuid.replace(/-/g, "")];
 		if (!data) continue;
 
-		const networthManager = new ProfileNetworthCalculator(data, 0, 0);
+		const bankBalance = profile.banking?.balance || 0;
+
+		let museumData = {};
+		try {
+			const museumRes = await fetch(`https://api.hypixel.net/v2/skyblock/museum?key=${apiKey}&profile=${profile.profile_id}`);
+			if (museumRes.ok) {
+				const museumJson = await museumRes.json();
+				if (museumJson.success && museumJson.members) {
+					museumData = museumJson.members?.[uuid.replace(/-/g, "")] || {};
+				}
+			}
+		} catch (e) {
+			// Museum data unavailable, continue without it
+		}
+
+		const networthManager = new ProfileNetworthCalculator(data, museumData, bankBalance);
 		const networth = await networthManager.getNetworth();
+		const nonCosmeticNetworth = await networthManager.getNonCosmeticNetworth();
 
 		totals.networth += Math.trunc(networth.networth) || 0;
+		totals.non_cosmetic_networth += Math.trunc(nonCosmeticNetworth.networth) || 0;
 		totals.kills += data.player_stats?.kills?.total || 0;
 		totals.deaths += data.player_data?.death_count || 0;
 		totals.fishing_xp += Math.trunc(data.player_data?.experience?.SKILL_FISHING || 0);
@@ -198,7 +216,7 @@ export async function getDataFromPlayer(profileApiJson, uuid) {
 	}
 
 	const experiences = [highest.experience, totals.fishing_xp, totals.alchemy_xp, totals.dungeoneering_xp, totals.runecrafting_xp, totals.mining_xp, totals.farming_xp, totals.enchanting_xp, totals.taming_xp, totals.foraging_xp, totals.social_xp, totals.carpentry_xp, totals.combat_xp];
-	const money = [totals.networth, totals.coin_purse, totals.bank_account, totals.mote_purse, totals.copper];
+	const money = [totals.networth, totals.non_cosmetic_networth, totals.coin_purse, totals.bank_account, totals.mote_purse, totals.copper];
 	const mining = [totals.mineshafts_entered, totals.mithril_powder, totals.gemstone_powder, totals.glacite_powder];
 	const completions = [normalFloors.f0, normalFloors.f1, normalFloors.f2, normalFloors.f3, normalFloors.f4, normalFloors.f5, normalFloors.f6, normalFloors.f7, masterFloors.m1, masterFloors.m2, masterFloors.m3, masterFloors.m4, masterFloors.m5, masterFloors.m6, masterFloors.m7, kuudraTiers.none, kuudraTiers.hot, kuudraTiers.burning, kuudraTiers.fiery, kuudraTiers.infernal];
 	const dungeon = [totals.total_secrets, totals.healer_xp, totals.mage_xp, totals.berserk_xp, totals.archer_xp, totals.tank_xp];

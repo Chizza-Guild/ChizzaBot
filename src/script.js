@@ -285,7 +285,7 @@ async function fetchApiKeyFromChannel(channelId) {
 				fetchFailed = true;
 			} else {
 				const profileApiJson = await profileApi.json();
-				allData = await getDataFromPlayer(profileApiJson, member.uuid);
+				allData = await getDataFromPlayer(profileApiJson, member.uuid, apiKey);
 			}
 
 			let discordMember = null;

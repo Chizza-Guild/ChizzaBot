@@ -40,7 +40,7 @@ jobs:
           node-version: '20'
 
       - if: steps.check.outputs.skip != 'true'
-        run: npm install
+        run: npm update
 
       - if: steps.check.outputs.skip != 'true'
         run: node src/script.js
