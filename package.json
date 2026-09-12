@@ -7,6 +7,7 @@
 		"discord.js": "^14.19.3",
 		"dotenv": "^16.5.0",
 		"node-fetch": "^2.7.0",
-		"skyhelper-networth": "^2.10.0"
+		"skyhelper-networth": "^2.10.0",
+		"ws": "^8.21.3"
 	}
 }

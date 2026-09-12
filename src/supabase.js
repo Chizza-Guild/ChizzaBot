@@ -1,6 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
+import ws from "ws";
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+	realtime: { transport: ws },
+});
 
 export async function loadEnvFromSupabase() {
 	const { data, error } = await supabase.from("misc_settings").select("*").single();
